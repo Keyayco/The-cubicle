@@ -9,6 +9,10 @@ import { LocalStorageAdapter } from '../storage/local-storage-adapter';
 import { MemoryStorageAdapter } from '../storage/memory-storage-adapter';
 import type { StorageAdapter } from '../storage/storage-adapter';
 import { StorageService } from '../storage/storage-service';
+import {
+  initializeWorkspaceSystem,
+  type WorkspaceSystem,
+} from '../../workspace';
 import { renderRootWorkspace } from './root-workspace';
 
 export interface BootstrapOptions {
@@ -24,6 +28,7 @@ export interface BootstrapResult {
   registry: Registry;
   runtime: Runtime;
   storage: StorageService;
+  workspace: WorkspaceSystem;
 }
 
 const deriveEnvironmentConfig = (): DeepPartial<CubeConfig> => {
@@ -83,6 +88,7 @@ export const bootstrapApplication = (
   });
 
   runtime.initialize();
+  const workspace = initializeWorkspaceSystem(runtime, config.getAll());
 
   const rootElement =
     options?.container ??
@@ -92,7 +98,7 @@ export const bootstrapApplication = (
     throw new Error('Bootstrap container could not be resolved.');
   }
 
-  renderRootWorkspace(rootElement, config.getAll(), runtime);
+  renderRootWorkspace(rootElement, config.getAll(), runtime, workspace);
 
   return {
     config,
@@ -102,5 +108,6 @@ export const bootstrapApplication = (
     registry,
     runtime,
     storage,
+    workspace,
   };
 };

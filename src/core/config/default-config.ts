@@ -26,6 +26,8 @@ export interface CubeConfig {
     rootElementId: string;
     title: string;
     description: string;
+    windowWidth: number;
+    windowHeight: number;
   };
 }
 
@@ -48,7 +50,9 @@ export const DEFAULT_CONFIG: CubeConfig = {
   },
   workspace: {
     rootElementId: 'app',
-    title: 'Cube OS Core Engine',
-    description: 'Core runtime initialized successfully.',
+    title: 'Cube OS Workspace',
+    description: 'Workspace environment initialized successfully.',
+    windowWidth: 480,
+    windowHeight: 320,
   },
 };
