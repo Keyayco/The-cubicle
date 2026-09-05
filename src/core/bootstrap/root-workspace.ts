@@ -1,5 +1,5 @@
 import type { CubeConfig } from '../config/default-config';
-import type { Runtime } from '../runtime/runtime';
+import type { Runtime, RuntimeStatusChange } from '../runtime/runtime';
 
 /**
  * Renders the minimal root workspace required for Phase 1 boot validation.
@@ -13,7 +13,6 @@ export const renderRootWorkspace = (
 
   const workspace = document.createElement('main');
   workspace.className = 'cube-root-workspace';
-  workspace.setAttribute('data-runtime-status', runtime.getStatus());
 
   const title = document.createElement('h1');
   title.textContent = config.workspace.title;
@@ -23,7 +22,23 @@ export const renderRootWorkspace = (
 
   const status = document.createElement('p');
   status.className = 'cube-runtime-status';
-  status.textContent = `Runtime status: ${runtime.getStatus()}`;
+
+  const syncRuntimeStatus = (value: string): void => {
+    workspace.setAttribute('data-runtime-status', value);
+    status.textContent = `Runtime status: ${value}`;
+  };
+
+  syncRuntimeStatus(runtime.getStatus());
+
+  runtime
+    .getServices()
+    .eventBus.on<RuntimeStatusChange>('runtime:status-changed', (event) => {
+      if (!event.payload) {
+        return;
+      }
+
+      syncRuntimeStatus(event.payload.currentStatus);
+    });
 
   workspace.append(title, description, status);
   container.append(workspace);

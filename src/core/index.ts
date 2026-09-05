@@ -28,6 +28,7 @@ export {
 } from './runtime/service-identifiers';
 export {
   Runtime,
+  type RuntimeStatusChange,
   type RuntimeServices,
   type RuntimeStatus,
 } from './runtime/runtime';

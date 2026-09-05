@@ -24,8 +24,10 @@
 - Local storage adapter
 - Memory storage adapter
 - Root workspace renderer
+- Runtime status-change event emission
+- Live runtime-status syncing in the root workspace shell
 - Public core barrel exports
-- Basic Vitest coverage for event bus, registry, storage, and bootstrap
+- Vitest coverage for event bus, registry, storage, runtime lifecycle, and bootstrap
 
 ## Components Currently Being Implemented
 
@@ -68,6 +70,7 @@ tests/
 - `src/core/index.ts`
 - `src/core/bootstrap/bootstrap.ts`
 - `src/core/runtime/runtime.ts`
+- `src/core/bootstrap/root-workspace.ts`
 - `tests/core-engine.test.ts`
 
 ## Current Public APIs
@@ -91,11 +94,12 @@ The public core exports currently come from `src/core/index.ts` and include:
   - Event bus duplicate-listener protection and unsubscribe behavior
   - Registry registration and lookup behavior
   - Storage service CRUD behavior through the memory adapter
-  - Bootstrap success path and root workspace render
+  - Runtime lifecycle transition events across initialize, shutdown, and restart
+  - Bootstrap success path, root workspace render, and live status updates during lifecycle changes
 
 ## Current Build Status
 
-- Verified on 2026-09-03 after installing dependencies with `npm ci`
+- Verified on 2026-09-05 after installing dependencies with `npm ci`
 - `npm test`: passing
 - `npm run build`: passing
 
@@ -105,7 +109,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 - No command execution system despite reserved registry support for `commands`
 - No persisted lifecycle recovery or app orchestration
 - No advanced UI beyond the minimal root workspace shell
-- No test coverage yet for restart, shutdown, error emission, or config override edge cases
+- No test coverage yet for runtime failure emission or config override edge cases
 - A fresh checkout in this sandbox requires `npm ci` before running tests or build
 - `npm ci` reports 1 high severity vulnerability in the dependency tree that has not been investigated in this pass
 
@@ -119,13 +123,13 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 - Keep the four root handover files synchronized after future changes
 - Investigate the reported `npm audit` high severity vulnerability when dependency maintenance is in scope
-- Decide whether the next task is Phase 1 hardening or the start of a later phase
+- Decide whether to continue Phase 1 hardening on failure/config paths or start a later phase
 
 ## Current Assumptions
 
 - The repo remains a frontend/browser runtime built with TypeScript, Vite, and Vitest.
 - `src/core/index.ts` remains the intended public barrel.
-- The current root workspace remains a boot-validation shell rather than a real workspace manager.
+- The current root workspace remains a boot-validation shell rather than a real workspace manager, even though it now reflects runtime lifecycle changes live.
 
 ## Current Blockers
 
@@ -134,11 +138,11 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 ## Most Recently Changed
 
-- Root-level AI handover documentation was established: `RULES.md`, `STATE.md`, `HANDOVER.md`, and `LOGS.md`
-- Repository verification was completed successfully with `npm ci`, `npm test`, and `npm run build`
+- Runtime lifecycle state changes are now emitted as a generic event and mirrored live in the root workspace shell
+- Runtime and bootstrap coverage now includes initialize/shutdown/restart lifecycle behavior
 
 ## What Should Be Worked On Next
 
 - After verification, choose the next concrete objective:
-  - harden Phase 1 with more lifecycle and error-path tests, or
+  - harden Phase 1 further with failure-path and config-override tests, or
   - begin the next planned subsystem such as plugin loading or workspace management
