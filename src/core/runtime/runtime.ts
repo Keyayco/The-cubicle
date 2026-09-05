@@ -14,6 +14,11 @@ export type RuntimeStatus =
   | 'stopped'
   | 'error';
 
+export interface RuntimeStatusChange {
+  currentStatus: RuntimeStatus;
+  previousStatus: RuntimeStatus;
+}
+
 export interface RuntimeServices {
   config: ConfigurationService;
   errorManager: ErrorManager;
@@ -60,20 +65,20 @@ export class Runtime {
       return;
     }
 
-    this.status = 'initializing';
+    this.transitionTo('initializing');
 
     try {
       this.registerCoreServices();
       this.services.errorManager.attachGlobalHandlers();
+      this.transitionTo('running');
       this.services.eventBus.emit('runtime:initialized', {
-        status: 'running',
+        status: this.status,
       });
       this.services.logger.info('Runtime initialized.', {
-        status: 'running',
+        status: this.status,
       });
-      this.status = 'running';
     } catch (error) {
-      this.status = 'error';
+      this.transitionTo('error');
       const normalizedError = this.services.errorManager.capture(error, {
         source: 'runtime.initialize',
       });
@@ -92,7 +97,7 @@ export class Runtime {
       return;
     }
 
-    this.status = 'stopping';
+    this.transitionTo('stopping');
     this.services.eventBus.emit('runtime:shutdown-requested', undefined, {
       source: 'runtime',
     });
@@ -100,7 +105,7 @@ export class Runtime {
     this.services.logger.info('Runtime shutdown complete.', {
       status: 'stopped',
     });
-    this.status = 'stopped';
+    this.transitionTo('stopped');
     this.services.eventBus.emit('runtime:stopped', {
       status: this.status,
     });
@@ -133,5 +138,18 @@ export class Runtime {
         this.services.registry.register('services', identifier, service);
       }
     }
+  }
+
+  private transitionTo(nextStatus: RuntimeStatus): void {
+    if (this.status === nextStatus) {
+      return;
+    }
+
+    const previousStatus = this.status;
+    this.status = nextStatus;
+    this.services.eventBus.emit<RuntimeStatusChange>('runtime:status-changed', {
+      currentStatus: nextStatus,
+      previousStatus,
+    });
   }
 }

@@ -256,6 +256,7 @@ Lifecycle behavior:
 
 Lifecycle events currently emitted:
 
+- `runtime:status-changed`
 - `runtime:initialized`
 - `runtime:failed`
 - `runtime:shutdown-requested`
@@ -310,7 +311,8 @@ Do not couple higher-level modules directly to a specific storage backend.
   - Event bus duplicate listener behavior and unsubscribe flow
   - Registry CRUD behavior
   - Storage service behavior via the memory adapter
-  - Bootstrap success path, runtime registration, and DOM rendering
+  - Runtime lifecycle transition behavior across initialize, shutdown, and restart
+  - Bootstrap success path, runtime registration, DOM rendering, and live runtime-status sync
 
 Additional tests should focus on behavior contracts and lifecycle invariants rather than implementation trivia.
 

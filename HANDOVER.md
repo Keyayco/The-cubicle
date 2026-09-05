@@ -13,6 +13,8 @@ The current codebase is intentionally infrastructure-first. It proves that the r
 - Bootstrap orchestration lives in `src/core/bootstrap/bootstrap.ts`
 - Current tests cover event bus, registry, storage, and bootstrap success
 - Verification has been run in this environment with `npm ci`, `npm test`, and `npm run build`
+- Runtime lifecycle transitions now emit a generic `runtime:status-changed` event
+- The root workspace shell now updates its displayed runtime status when lifecycle changes occur
 - Higher-level systems such as plugin loading and workspace management are not implemented yet
 - The root handover documentation has been added and must be kept current
 
@@ -70,16 +72,17 @@ If no separate product task has been provided, the most reasonable next step is 
 - `src/main.ts` is intentionally thin and should stay that way.
 - `bootstrapApplication()` is the composition root and is where service wiring belongs.
 - `Runtime.initialize()` registers core services into the registry and attaches browser-level error handlers.
+- `Runtime` now emits `runtime:status-changed` whenever its inspectable status moves between lifecycle states.
 - The runtime already reserves registry categories for `plugins` and `commands`, but those systems do not exist yet.
 - `StorageService` is the stable abstraction; the rest of the system should not depend directly on `window.localStorage`.
-- Current UI rendering is intentionally minimal and exists only to validate that the core engine booted successfully.
+- Current UI rendering is intentionally minimal and exists only to validate that the core engine booted successfully, while now reflecting runtime status changes live.
 - `src/core/index.ts` is the public export surface for reusable core APIs.
 
 ## Do Not Assume
 
 - Do not assume plugin support exists because `RegistryCategory` includes `plugins`.
 - Do not assume command execution exists because `RegistryCategory` includes `commands`.
-- Do not assume `restart()` has comprehensive test coverage.
+- Do not assume runtime failure paths or config override edge cases have comprehensive test coverage.
 - Do not assume build and test status if you have not run them in the current state.
 - Do not assume dependencies are already installed in a clean environment; run `npm ci` first.
 - Do not assume a next phase has already been decided just because Phase 1 exclusions are listed in `README.md`.
@@ -91,7 +94,7 @@ Unless a user gives a more specific task, the clearest next actions are:
 
 1. Verify `npm test`
 2. Verify `npm run build`
-3. Expand coverage around lifecycle transitions, global error handling, and config override behavior if Phase 1 hardening is chosen
+3. Expand coverage around runtime failure emission, global error handling, and config override behavior if Phase 1 hardening is chosen
 4. Record any noteworthy findings in `LOGS.md`
 5. Decide whether to harden Phase 1 further or start the next subsystem with a clearly documented objective
 

@@ -55,6 +55,21 @@ const createStorageAdapter = (
   return new MemoryStorageAdapter();
 };
 
+const resolveRootElement = (
+  config: ConfigurationService,
+  container?: HTMLElement,
+): HTMLElement => {
+  const rootElement =
+    container ??
+    document.getElementById(config.getSection('workspace').rootElementId);
+
+  if (!rootElement) {
+    throw new Error('Bootstrap container could not be resolved.');
+  }
+
+  return rootElement;
+};
+
 /**
  * Bootstraps the Cube Phase 1 core engine and renders the root workspace.
  */
@@ -84,15 +99,16 @@ export const bootstrapApplication = (
 
   runtime.initialize();
 
-  const rootElement =
-    options?.container ??
-    document.getElementById(config.getSection('workspace').rootElementId);
-
-  if (!rootElement) {
-    throw new Error('Bootstrap container could not be resolved.');
+  try {
+    const rootElement = resolveRootElement(config, options?.container);
+    renderRootWorkspace(rootElement, config.getAll(), runtime);
+  } catch (error) {
+    const normalizedError = errorManager.capture(error, {
+      source: 'bootstrap.render',
+    });
+    runtime.shutdown();
+    throw normalizedError;
   }
-
-  renderRootWorkspace(rootElement, config.getAll(), runtime);
 
   return {
     config,
