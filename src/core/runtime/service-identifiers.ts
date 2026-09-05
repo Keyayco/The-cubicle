@@ -9,6 +9,7 @@ export const CORE_SERVICE_IDS = {
   registry: 'registry',
   runtime: 'runtime',
   storage: 'storage',
+  workspaceManager: 'workspaceManager',
 } as const;
 
 export type CoreServiceId =

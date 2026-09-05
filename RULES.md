@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements Phase 1 of Cube OS: a browser-based, plugin-first core engine. Its job is to provide the foundational runtime services that later phases can build on without introducing application-specific behavior.
+This repository implements the Cube browser runtime foundation plus an initial workspace manager. Its job is to provide the foundational runtime services and workspace state orchestration that later phases can build on without introducing application-specific behavior.
 
 The current codebase intentionally focuses on infrastructure:
 
@@ -14,9 +14,10 @@ The current codebase intentionally focuses on infrastructure:
 - Logging
 - Error normalization and capture
 - Storage abstraction
-- Minimal DOM rendering to prove successful boot
+- Workspace state management
+- Minimal DOM rendering to prove successful boot and visualize workspace state
 
-It intentionally does not implement application modules, a workspace manager, a window system, a plugin loader, authentication, or cloud sync.
+It intentionally does not implement application modules, a window system, a plugin loader, authentication, or cloud sync.
 
 ## Architectural Philosophy
 
@@ -34,7 +35,7 @@ The application is a single Vite-powered frontend entrypoint:
 - `index.html` provides the `#app` mount point.
 - `src/main.ts` imports styles and calls `bootstrapApplication()`.
 - `src/core/bootstrap/bootstrap.ts` wires all core services together.
-- `src/core/bootstrap/root-workspace.ts` renders the minimal Phase 1 workspace shell.
+- `src/core/bootstrap/root-workspace.ts` renders the current workspace shell.
 
 Core subsystems live under `src/core`:
 
@@ -46,6 +47,7 @@ Core subsystems live under `src/core`:
 - `registry`: runtime-owned service/object registry
 - `runtime`: lifecycle state machine and service exposure
 - `storage`: adapter contract and concrete storage implementations
+- `workspace`: persisted workspace state and active-item coordination
 
 ## Directory Structure
 
@@ -134,6 +136,13 @@ Core subsystems live under `src/core`:
 - Provide `LocalStorageAdapter` for browser persistence with namespacing.
 - Provide `MemoryStorageAdapter` for tests and non-persistent execution.
 
+### `src/core/workspace`
+
+- Hydrate workspace state from storage and backfill default system items.
+- Track registered workspace items and the active item.
+- Persist workspace mutations through `StorageService`.
+- Emit workspace lifecycle and state-change events.
+
 ## Important Abstractions
 
 ### `CubeConfig`
@@ -165,6 +174,10 @@ Coordinates startup, shutdown, restart, status tracking, service registration, a
 ### `StorageAdapter` and `StorageService`
 
 All runtime code should depend on `StorageService` or the `StorageAdapter` contract, not on `window.localStorage` directly.
+
+### `WorkspaceManager`
+
+Owns the current workspace snapshot, persists it, and exposes operations for item registration, activation, and removal.
 
 ### `CubeError` and `ErrorManager`
 
@@ -199,6 +212,9 @@ Important public contracts currently exported through `src/core/index.ts` includ
 - `StorageService`
 - `LocalStorageAdapter`
 - `MemoryStorageAdapter`
+- `WorkspaceItem`
+- `WorkspaceSnapshot`
+- `WorkspaceManager`
 
 `src/core/index.ts` is the public barrel for the core engine. New reusable core APIs should generally be exported there once they are intended for external consumption.
 
@@ -210,8 +226,9 @@ The current runtime data flow is:
 2. Bootstrap derives environment config and applies optional runtime overrides.
 3. Bootstrap creates `ConfigurationService`, `Registry`, `EventBus`, `Logger`, `ErrorManager`, `StorageService`, and `Runtime`.
 4. `Runtime.initialize()` registers services, attaches global handlers, emits `runtime:initialized`, logs startup, and transitions to `running`.
-5. Bootstrap resolves the root container and renders the root workspace view.
-6. The DOM reflects the current runtime status and workspace text from config.
+5. `WorkspaceManager.initialize()` hydrates persisted workspace state and backfills seed items.
+6. Bootstrap resolves the root container and renders the root workspace view.
+7. The DOM reflects the current runtime status, workspace summary, and active workspace item.
 
 During failures:
 
@@ -230,10 +247,12 @@ The initialization order in `bootstrapApplication()` is intentional:
 4. Create logger using current logging config.
 5. Create error manager using logger and event bus.
 6. Create storage service using the selected adapter.
-7. Create runtime with all services.
-8. Initialize runtime.
-9. Resolve the DOM container.
-10. Render the root workspace.
+7. Create workspace manager.
+8. Create runtime with all services.
+9. Initialize runtime.
+10. Hydrate the workspace manager.
+11. Resolve the DOM container.
+12. Render the root workspace.
 
 Do not render before `Runtime.initialize()` completes successfully.
 
@@ -262,6 +281,11 @@ Lifecycle events currently emitted:
 - `runtime:shutdown-requested`
 - `runtime:stopped`
 - `runtime:restart-requested`
+- `workspace:initialized`
+- `workspace:state-changed`
+- `workspace:item-registered`
+- `workspace:item-removed`
+- `workspace:active-item-changed`
 
 ## Event System
 
@@ -279,6 +303,13 @@ If asynchronous or buffered delivery is added later, it must be introduced delib
 - `register()` throws on duplicate identifiers in a category.
 - Runtime core services are registered under the `services` category using `CORE_SERVICE_IDS`.
 - Service retrieval should go through `Runtime.getService()` or `Registry.get('services', ...)` rather than ad hoc globals.
+
+## Workspace System
+
+- `WorkspaceManager` is the runtime-facing abstraction for workspace state.
+- Workspace state is persisted under a storage key and restored on the next boot.
+- Seed items are merged back in when missing so new system panels can appear after upgrades.
+- The root workspace UI reflects the active workspace item and listens for `workspace:state-changed`.
 
 ## Storage System
 
@@ -341,8 +372,9 @@ Additional tests should focus on behavior contracts and lifecycle invariants rat
 
 ## Extension And Plugin Rules
 
-- The runtime and registry already reserve a `plugins` registry category, but plugin loading is not implemented in Phase 1.
+- The runtime and registry already reserve a `plugins` registry category, but plugin loading is not implemented yet.
 - Future plugin systems should consume stable core services through the runtime/registry rather than bypassing them.
+- Future plugin workspace surfaces should register items through `WorkspaceManager` rather than mutating the DOM directly.
 - Any plugin loader must preserve the current separation between the core engine and feature modules.
 
 Do not add plugin-specific behavior into the Phase 1 core without a deliberate architectural change.
@@ -358,9 +390,10 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - Core services remain registrable and accessible by canonical service IDs.
 - Configuration remains immutable once built.
 - Storage remains abstracted behind `StorageService` and `StorageAdapter`.
+- Workspace state remains observable and persisted through `WorkspaceManager`.
 - Unexpected errors remain normalized and observable.
 - The event bus remains lightweight and duplicate-listener safe.
-- Phase 1 remains free of application modules and business-specific logic.
+- The runtime remains free of business-specific logic.
 
 ## Must-Not-Break Rules
 
@@ -379,3 +412,4 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - `initialize()` avoids duplicate service registration by checking the registry before registering.
 - `LocalStorageAdapter` is only selected when configured and when `window` exists; otherwise bootstrap falls back to memory storage.
 - Global browser error handlers are attached only at runtime initialization, not at module import time.
+- Workspace seed items are backfilled into persisted state so new system panels can appear without destroying user state.

@@ -36,3 +36,12 @@ export { LocalStorageAdapter } from './storage/local-storage-adapter';
 export { MemoryStorageAdapter } from './storage/memory-storage-adapter';
 export type { StorageAdapter } from './storage/storage-adapter';
 export { StorageService } from './storage/storage-service';
+export {
+  WORKSPACE_STORAGE_KEY,
+  WorkspaceManager,
+  type WorkspaceActiveItemChange,
+  type WorkspaceItem,
+  type WorkspaceItemKind,
+  type WorkspaceSnapshot,
+  type WorkspaceState,
+} from './workspace/workspace-manager';

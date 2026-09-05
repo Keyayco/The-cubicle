@@ -1,10 +1,10 @@
-# Cube OS - Phase 1 Core Engine
+# Cube OS Core Engine
 
-Cube Phase 1 establishes the production-grade foundation for a plugin-first, browser-based operating system. This repository intentionally implements only the core engine and avoids application modules, dashboards, and business-specific features.
+Cube establishes the production-grade foundation for a plugin-first, browser-based operating system. This repository now implements the core engine plus an initial persisted workspace manager, while still avoiding application modules, dashboards, and business-specific features.
 
 ## Scope
 
-Phase 1 includes:
+Current scope includes:
 
 - Application bootstrap
 - Runtime lifecycle management
@@ -14,10 +14,10 @@ Phase 1 includes:
 - Storage abstraction
 - Configuration service
 - Centralized error handling
+- Workspace manager with persisted state and active-item selection
 
-Phase 1 explicitly excludes:
+The repository still explicitly excludes:
 
-- Workspace manager
 - Window system
 - Plugin loader
 - Feature modules and apps
@@ -37,12 +37,14 @@ src/
     registry/
     runtime/
     storage/
+    workspace/
 ```
 
 ### Design Notes
 
 - Plugin-first: the runtime exposes stable services that future plugins can consume.
 - Event-driven: the `EventBus` provides decoupled communication where direct module coupling is not appropriate.
+- Workspace state is persisted through `StorageService` and observed through workspace events.
 - Separated concerns: each subsystem owns one responsibility and is wired together only at bootstrap time.
 - No circular dependencies: services depend on contracts and orchestration happens through the runtime.
 - Storage abstraction: callers depend on `StorageService`, not on `localStorage` or a specific persistence engine.

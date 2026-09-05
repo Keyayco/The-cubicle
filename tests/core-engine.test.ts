@@ -1,6 +1,5 @@
 import {
   bootstrapApplication,
-  CubeError,
   ConfigurationService,
   CORE_SERVICE_IDS,
   ErrorManager,
@@ -11,6 +10,10 @@ import {
   Runtime,
   type RuntimeStatusChange,
   StorageService,
+  WORKSPACE_STORAGE_KEY,
+  WorkspaceManager,
+  type WorkspaceItem,
+  type WorkspaceState,
 } from '../src/core';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -88,6 +91,7 @@ describe('Runtime', () => {
     });
     const errorManager = new ErrorManager(logger, eventBus);
     const storage = new StorageService(new MemoryStorageAdapter());
+    const workspaceManager = new WorkspaceManager(eventBus, storage);
     const runtime = new Runtime({
       config,
       errorManager,
@@ -95,6 +99,7 @@ describe('Runtime', () => {
       logger,
       registry,
       storage,
+      workspaceManager,
     });
     const observedTransitions: Array<[string, string]> = [];
 
@@ -125,11 +130,102 @@ describe('Runtime', () => {
   });
 });
 
+describe('WorkspaceManager', () => {
+  it('hydrates, persists state changes, and restores them on the next load', async () => {
+    const eventBus = new EventBus();
+    const storage = new StorageService(new MemoryStorageAdapter());
+    const workspaceManager = new WorkspaceManager(eventBus, storage);
+    const eventTypes: string[] = [];
+    const seedItems: WorkspaceItem[] = [
+      {
+        id: 'overview',
+        title: 'Overview',
+        description: 'Workspace overview.',
+        kind: 'system',
+      },
+      {
+        id: 'runtime',
+        title: 'Runtime',
+        description: 'Runtime diagnostics.',
+        kind: 'system',
+      },
+    ];
+
+    eventBus.on('workspace:initialized', (event) => {
+      eventTypes.push(event.type);
+    });
+    eventBus.on('workspace:item-registered', (event) => {
+      eventTypes.push(event.type);
+    });
+    eventBus.on('workspace:active-item-changed', (event) => {
+      eventTypes.push(event.type);
+    });
+    eventBus.on('workspace:item-removed', (event) => {
+      eventTypes.push(event.type);
+    });
+
+    await workspaceManager.initialize(seedItems);
+    await workspaceManager.registerItem({
+      id: 'storage',
+      title: 'Storage',
+      description: 'Storage status.',
+      kind: 'system',
+    });
+    await workspaceManager.activateItem('storage');
+    await workspaceManager.removeItem('runtime');
+
+    expect(workspaceManager.isHydrated()).toBe(true);
+    expect(workspaceManager.getActiveItem()?.id).toBe('storage');
+    expect(workspaceManager.listItems().map((item) => item.id)).toEqual([
+      'overview',
+      'storage',
+    ]);
+    expect(eventTypes).toContain('workspace:initialized');
+    expect(eventTypes).toContain('workspace:item-registered');
+    expect(eventTypes).toContain('workspace:active-item-changed');
+    expect(eventTypes).toContain('workspace:item-removed');
+
+    expect(await storage.read<WorkspaceState>(WORKSPACE_STORAGE_KEY)).toEqual({
+      items: [
+        {
+          id: 'overview',
+          title: 'Overview',
+          description: 'Workspace overview.',
+          kind: 'system',
+        },
+        {
+          id: 'storage',
+          title: 'Storage',
+          description: 'Storage status.',
+          kind: 'system',
+        },
+      ],
+      activeItemId: 'storage',
+    });
+
+    const rehydratedWorkspaceManager = new WorkspaceManager(eventBus, storage);
+    await rehydratedWorkspaceManager.initialize([
+      ...seedItems,
+      {
+        id: 'diagnostics',
+        title: 'Diagnostics',
+        description: 'Diagnostics panel.',
+        kind: 'system',
+      },
+    ]);
+
+    expect(
+      rehydratedWorkspaceManager.listItems().map((item) => item.id),
+    ).toEqual(['overview', 'storage', 'runtime', 'diagnostics']);
+    expect(rehydratedWorkspaceManager.getActiveItem()?.id).toBe('storage');
+  });
+});
+
 describe('bootstrapApplication', () => {
-  it('boots the runtime, registers core services, and renders the root workspace', () => {
+  it('boots the runtime, registers core services, and renders the root workspace', async () => {
     document.body.innerHTML = '<div id="app"></div>';
 
-    const result = bootstrapApplication({
+    const result = await bootstrapApplication({
       runtimeOverrides: {
         storage: {
           driver: 'memory',
@@ -140,17 +236,24 @@ describe('bootstrapApplication', () => {
     expect(result.runtime.getStatus()).toBe('running');
     expect(result.registry.has('services', CORE_SERVICE_IDS.runtime)).toBe(true);
     expect(result.registry.has('services', CORE_SERVICE_IDS.logger)).toBe(true);
+    expect(
+      result.registry.has('services', CORE_SERVICE_IDS.workspaceManager),
+    ).toBe(true);
     expect(document.querySelector('.cube-root-workspace')).not.toBeNull();
     expect(document.body.textContent).toContain('Core Engine');
     expect(document.querySelector('.cube-runtime-status')?.textContent).toContain(
       'running',
     );
+    expect(document.querySelectorAll('.cube-workspace-item')).toHaveLength(3);
+    expect(document.querySelector('.cube-workspace-panel h2')?.textContent).toBe(
+      'Overview',
+    );
   });
 
-  it('keeps the rendered workspace status synchronized with runtime lifecycle changes', () => {
+  it('keeps the rendered workspace status synchronized with runtime lifecycle changes', async () => {
     document.body.innerHTML = '<div id="app"></div>';
 
-    const result = bootstrapApplication({
+    const result = await bootstrapApplication({
       runtimeOverrides: {
         storage: {
           driver: 'memory',
@@ -175,13 +278,43 @@ describe('bootstrapApplication', () => {
     expect(status?.textContent).toContain('running');
   });
 
-  it('normalizes bootstrap render failures and detaches global handlers', () => {
+  it('renders workspace items and keeps the active panel synchronized', async () => {
+    document.body.innerHTML = '<div id="app"></div>';
+
+    const result = await bootstrapApplication({
+      runtimeOverrides: {
+        storage: {
+          driver: 'memory',
+        },
+      },
+    });
+
+    expect(document.querySelector('.cube-workspace-panel h2')?.textContent).toBe(
+      'Overview',
+    );
+
+    await result.workspaceManager.activateItem('storage');
+
+    expect(document.querySelector('.cube-workspace-panel h2')?.textContent).toBe(
+      'Storage',
+    );
+    expect(
+      document.querySelector('[data-workspace-item-id="storage"]')?.getAttribute(
+        'data-active',
+      ),
+    ).toBe('true');
+    expect(document.querySelector('.cube-workspace-panel-meta')?.textContent).toContain(
+      'Id: storage',
+    );
+  });
+
+  it('normalizes bootstrap render failures and detaches global handlers', async () => {
     document.body.innerHTML = '';
 
     const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
     const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
 
-    try {
+    await expect(
       bootstrapApplication({
         runtimeOverrides: {
           logging: {
@@ -191,14 +324,11 @@ describe('bootstrapApplication', () => {
             driver: 'memory',
           },
         },
-      });
-    } catch (error) {
-      expect(error).toBeInstanceOf(CubeError);
-      expect((error as CubeError).message).toBe(
-        'Bootstrap container could not be resolved.',
-      );
-      expect((error as CubeError).code).toBe('RUNTIME_ERROR');
-    }
+      }),
+    ).rejects.toMatchObject({
+      message: 'Bootstrap container could not be resolved.',
+      code: 'RUNTIME_ERROR',
+    });
 
     const addedEventTypes = addEventListenerSpy.mock.calls.map(([type]) => type);
     const removedEventTypes = removeEventListenerSpy.mock.calls.map(

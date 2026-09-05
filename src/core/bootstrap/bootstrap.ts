@@ -9,6 +9,10 @@ import { LocalStorageAdapter } from '../storage/local-storage-adapter';
 import { MemoryStorageAdapter } from '../storage/memory-storage-adapter';
 import type { StorageAdapter } from '../storage/storage-adapter';
 import { StorageService } from '../storage/storage-service';
+import {
+  type WorkspaceItem,
+  WorkspaceManager,
+} from '../workspace/workspace-manager';
 import { renderRootWorkspace } from './root-workspace';
 
 export interface BootstrapOptions {
@@ -24,6 +28,7 @@ export interface BootstrapResult {
   registry: Registry;
   runtime: Runtime;
   storage: StorageService;
+  workspaceManager: WorkspaceManager;
 }
 
 const deriveEnvironmentConfig = (): DeepPartial<CubeConfig> => {
@@ -70,12 +75,41 @@ const resolveRootElement = (
   return rootElement;
 };
 
+const createDefaultWorkspaceItems = (
+  config: Readonly<CubeConfig>,
+): WorkspaceItem[] => [
+  {
+    id: 'overview',
+    title: 'Overview',
+    description: config.workspace.description,
+    kind: 'system',
+  },
+  {
+    id: 'runtime',
+    title: 'Runtime',
+    description: `Mode: ${config.environment.mode}. Logging level: ${config.logging.level}.`,
+    kind: 'system',
+  },
+  {
+    id: 'storage',
+    title: 'Storage',
+    description: `Driver: ${config.storage.driver}. Namespace: ${config.storage.namespace}.`,
+    kind: 'system',
+  },
+];
+
 /**
  * Bootstraps the Cube Phase 1 core engine and renders the root workspace.
  */
 export const bootstrapApplication = (
   options?: BootstrapOptions,
-): BootstrapResult => {
+): Promise<BootstrapResult> => {
+  return bootstrapApplicationInternal(options);
+};
+
+const bootstrapApplicationInternal = async (
+  options?: BootstrapOptions,
+): Promise<BootstrapResult> => {
   const config = new ConfigurationService({
     environmentConfig: deriveEnvironmentConfig(),
     runtimeOverrides: options?.runtimeOverrides,
@@ -88,6 +122,7 @@ export const bootstrapApplication = (
   });
   const errorManager = new ErrorManager(logger, eventBus);
   const storage = new StorageService(createStorageAdapter(config.getAll()));
+  const workspaceManager = new WorkspaceManager(eventBus, storage);
   const runtime = new Runtime({
     config,
     errorManager,
@@ -95,13 +130,15 @@ export const bootstrapApplication = (
     logger,
     registry,
     storage,
+    workspaceManager,
   });
 
   runtime.initialize();
 
   try {
+    await workspaceManager.initialize(createDefaultWorkspaceItems(config.getAll()));
     const rootElement = resolveRootElement(config, options?.container);
-    renderRootWorkspace(rootElement, config.getAll(), runtime);
+    renderRootWorkspace(rootElement, config.getAll(), runtime, workspaceManager);
   } catch (error) {
     const normalizedError = errorManager.capture(error, {
       source: 'bootstrap.render',
@@ -118,5 +155,6 @@ export const bootstrapApplication = (
     registry,
     runtime,
     storage,
+    workspaceManager,
   };
 };
