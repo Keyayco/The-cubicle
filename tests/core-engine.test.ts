@@ -1,5 +1,6 @@
 import {
   bootstrapApplication,
+  CubeError,
   ConfigurationService,
   CORE_SERVICE_IDS,
   ErrorManager,
@@ -172,5 +173,41 @@ describe('bootstrapApplication', () => {
 
     expect(workspace?.getAttribute('data-runtime-status')).toBe('running');
     expect(status?.textContent).toContain('running');
+  });
+
+  it('normalizes bootstrap render failures and detaches global handlers', () => {
+    document.body.innerHTML = '';
+
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+
+    try {
+      bootstrapApplication({
+        runtimeOverrides: {
+          logging: {
+            enabled: false,
+          },
+          storage: {
+            driver: 'memory',
+          },
+        },
+      });
+    } catch (error) {
+      expect(error).toBeInstanceOf(CubeError);
+      expect((error as CubeError).message).toBe(
+        'Bootstrap container could not be resolved.',
+      );
+      expect((error as CubeError).code).toBe('RUNTIME_ERROR');
+    }
+
+    const addedEventTypes = addEventListenerSpy.mock.calls.map(([type]) => type);
+    const removedEventTypes = removeEventListenerSpy.mock.calls.map(
+      ([type]) => type,
+    );
+
+    expect(addedEventTypes).toContain('error');
+    expect(addedEventTypes).toContain('unhandledrejection');
+    expect(removedEventTypes).toContain('error');
+    expect(removedEventTypes).toContain('unhandledrejection');
   });
 });
