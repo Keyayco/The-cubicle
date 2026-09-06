@@ -181,6 +181,7 @@ describe('bootstrapApplication', () => {
     const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
     const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
 
+    let thrown: unknown;
     try {
       bootstrapApplication({
         runtimeOverrides: {
@@ -193,12 +194,14 @@ describe('bootstrapApplication', () => {
         },
       });
     } catch (error) {
-      expect(error).toBeInstanceOf(CubeError);
-      expect((error as CubeError).message).toBe(
-        'Bootstrap container could not be resolved.',
-      );
-      expect((error as CubeError).code).toBe('RUNTIME_ERROR');
+      thrown = error;
     }
+
+    expect(thrown).toBeInstanceOf(CubeError);
+    expect((thrown as CubeError).message).toBe(
+      'Bootstrap container could not be resolved.',
+    );
+    expect((thrown as CubeError).code).toBe('RUNTIME_ERROR');
 
     const addedEventTypes = addEventListenerSpy.mock.calls.map(([type]) => type);
     const removedEventTypes = removeEventListenerSpy.mock.calls.map(
