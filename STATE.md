@@ -44,11 +44,11 @@
 
 * Public core barrel exports
 
-* Vitest coverage for event bus, registry, storage, runtime lifecycle, and bootstrap
+* Vitest coverage for event bus, registry, storage, runtime lifecycle, bootstrap, and Phase 1 hardening paths
 
 ## Components Currently Being Implemented
 
-* AI handover infrastructure at the repository root
+* No component currently being implemented; the latest task activated the existing hardening test suite
 
 ## Components Not Yet Implemented
 
@@ -81,6 +81,7 @@ src/
     index.ts
 tests/
   core-engine.test.ts
+  core-hardening.test.ts
 ```
 
 ## Current Important Files
@@ -102,6 +103,8 @@ tests/
 * `src/core/bootstrap/root-workspace.ts`
 
 * `tests/core-engine.test.ts`
+
+* `tests/core-hardening.test.ts`
 
 ## Current Public APIs
 
@@ -141,11 +144,13 @@ The public core exports currently come from `src/core/index.ts` and include:
 
   * Bootstrap success path, root workspace render, and live status updates during lifecycle changes
 
+  * Runtime failure normalization, config override behavior, global error handlers, logger filtering, and local-storage namespacing
+
 ## Current Build Status
 
-* Verified on 2026-09-05 after installing dependencies with `npm ci`
+* Verified on 2026-09-28 after installing dependencies with `npm ci`
 
-* `npm test`: passing
+* `npm test`: passing (17 tests across 2 files)
 
 * `npm run build`: passing
 
@@ -159,11 +164,9 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * No advanced UI beyond the minimal root workspace shell
 
-* No test coverage yet for runtime failure emission or config override edge cases
-
 * A fresh checkout in this sandbox requires `npm ci` before running tests or build
 
-* `npm ci` reports 1 high severity vulnerability in the dependency tree that has not been investigated in this pass
+* `npm ci` reports 3 vulnerabilities (2 moderate, 1 high) in the dependency tree that have not been investigated in this pass
 
 ## Current Integration Status
 
@@ -179,7 +182,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Investigate the reported `npm audit` high severity vulnerability when dependency maintenance is in scope
 
-* Decide whether to continue Phase 1 hardening on failure/config paths or start a later phase
+* Decide whether to continue Phase 1 hardening or start a later phase
 
 ## Current Assumptions
 
@@ -201,11 +204,13 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Runtime and bootstrap coverage now includes initialize/shutdown/restart lifecycle behavior
 
+* Existing hardening tests were previously named `core-hardening-file.ts`, so Vitest ignored them; they are now named `core-hardening.test.ts` and execute as part of the normal test command
+
 ## What Should Be Worked On Next
 
 * After verification, choose the next concrete objective:
 
-  * harden Phase 1 further with failure-path and config-override tests, or
+  * harden Phase 1 further with additional failure-path and config-override tests, or
 
   * begin the next planned subsystem such as plugin loading or workspace management
 

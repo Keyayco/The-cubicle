@@ -11,12 +11,13 @@ The current codebase is intentionally infrastructure-first. It proves that the r
 - Core engine services are implemented under `src/core`
 - The browser entrypoint is `src/main.ts`
 - Bootstrap orchestration lives in `src/core/bootstrap/bootstrap.ts`
-- Current tests cover event bus, registry, storage, and bootstrap success
+- Current tests cover event bus, registry, storage, bootstrap success, and Phase 1 hardening paths
 - Verification has been run in this environment with `npm ci`, `npm test`, and `npm run build`
 - Runtime lifecycle transitions now emit a generic `runtime:status-changed` event
 - The root workspace shell now updates its displayed runtime status when lifecycle changes occur
 - Higher-level systems such as plugin loading and workspace management are not implemented yet
 - The root handover documentation has been added and must be kept current
+- Phase 1 hardening coverage is active in `tests/core-hardening.test.ts`
 
 ## Read First
 
@@ -94,7 +95,7 @@ Unless a user gives a more specific task, the clearest next actions are:
 
 1. Verify `npm test`
 2. Verify `npm run build`
-3. Expand coverage around runtime failure emission, global error handling, and config override behavior if Phase 1 hardening is chosen
+3. Review the now-active hardening coverage and address any additional gaps found
 4. Record any noteworthy findings in `LOGS.md`
 5. Decide whether to harden Phase 1 further or start the next subsystem with a clearly documented objective
 

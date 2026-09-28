@@ -106,3 +106,31 @@ The runtime exposed restart and shutdown APIs, but the minimal root workspace on
 
 - `npm ci` still reports 1 high severity vulnerability in the dependency tree
 - Failure-path and config override edge-case coverage remain good candidates for the next hardening pass
+
+## 2026-09-28 - Activated Phase 1 Hardening Coverage
+
+### Issue
+
+The repository contained `tests/core-hardening-file.ts` with runtime failure, configuration override, global error handler, logger filtering, and local-storage tests, but Vitest only discovers files matching its `*.test.*` or `*.spec.*` patterns.
+
+### Finding
+
+- The normal `npm test` command reported 7 tests in `tests/core-engine.test.ts`
+- The hardening file was not discovered and could not be run through Vitest's normal test selection
+- The existing hardening tests passed once the filename matched the configured discovery pattern
+
+### Resolution
+
+- Renamed `tests/core-hardening-file.ts` to `tests/core-hardening.test.ts`
+- Updated `STATE.md` and `HANDOVER.md` to reflect the active coverage
+- Re-ran the full test suite and production build
+
+### Verification
+
+- `npm test`: 17 tests passing across 2 test files
+- `npm run build`: passing
+- `npm ci`: completed; npm reported 3 vulnerabilities (2 moderate, 1 high)
+
+### Impact
+
+Phase 1 now has automated coverage for runtime failure normalization, configuration override merging and immutability, browser error handler attachment/detachment, logger filtering, and local-storage namespacing. No production source behavior required changes.
