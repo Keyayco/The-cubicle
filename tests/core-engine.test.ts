@@ -7,6 +7,7 @@ import {
   EventBus,
   Logger,
   MemoryStorageAdapter,
+  PluginLoader,
   Registry,
   Runtime,
   type RuntimeStatusChange,
@@ -88,11 +89,19 @@ describe('Runtime', () => {
     });
     const errorManager = new ErrorManager(logger, eventBus);
     const storage = new StorageService(new MemoryStorageAdapter());
+    const pluginLoader = new PluginLoader(
+      registry,
+      { config, eventBus, logger, registry, storage },
+      errorManager,
+      eventBus,
+      logger,
+    );
     const runtime = new Runtime({
       config,
       errorManager,
       eventBus,
       logger,
+      pluginLoader,
       registry,
       storage,
     });
@@ -140,6 +149,9 @@ describe('bootstrapApplication', () => {
     expect(result.runtime.getStatus()).toBe('running');
     expect(result.registry.has('services', CORE_SERVICE_IDS.runtime)).toBe(true);
     expect(result.registry.has('services', CORE_SERVICE_IDS.logger)).toBe(true);
+    expect(
+      result.registry.has('services', CORE_SERVICE_IDS.pluginLoader),
+    ).toBe(true);
     expect(document.querySelector('.cube-root-workspace')).not.toBeNull();
     expect(document.body.textContent).toContain('Core Engine');
     expect(document.querySelector('.cube-runtime-status')?.textContent).toContain(
@@ -173,6 +185,37 @@ describe('bootstrapApplication', () => {
 
     expect(workspace?.getAttribute('data-runtime-status')).toBe('running');
     expect(status?.textContent).toContain('running');
+  });
+
+  it('unloads plugins during shutdown and reloads them on restart', () => {
+    document.body.innerHTML = '<div id="app"></div>';
+    const result = bootstrapApplication({
+      runtimeOverrides: {
+        storage: {
+          driver: 'memory',
+        },
+      },
+    });
+    const activate = vi.fn();
+    const cleanup = vi.fn();
+
+    result.pluginLoader.register({
+      id: 'test.lifecycle',
+      activate: () => {
+        activate();
+        return cleanup;
+      },
+    });
+    result.pluginLoader.load('test.lifecycle');
+    expect(result.pluginLoader.getStatus('test.lifecycle')).toBe('loaded');
+
+    result.runtime.shutdown();
+    expect(cleanup).toHaveBeenCalledTimes(1);
+    expect(result.pluginLoader.getStatus('test.lifecycle')).toBe('registered');
+
+    result.runtime.restart();
+    expect(activate).toHaveBeenCalledTimes(2);
+    expect(result.pluginLoader.getStatus('test.lifecycle')).toBe('loaded');
   });
 
   it('normalizes bootstrap render failures and detaches global handlers', () => {

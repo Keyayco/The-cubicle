@@ -7,6 +7,7 @@ import {
   Logger,
   MemoryStorageAdapter,
   normalizeError,
+  PluginLoader,
   Registry,
   Runtime,
   StorageService,
@@ -26,12 +27,21 @@ describe('Runtime failure path', () => {
       },
       detachGlobalHandlers: () => undefined,
     } as unknown as ErrorManager;
+    const config = new ConfigurationService();
+    const pluginLoader = new PluginLoader(
+      registry,
+      { config, eventBus, logger, registry, storage },
+      failingErrorManager,
+      eventBus,
+      logger,
+    );
 
     const runtime = new Runtime({
-      config: new ConfigurationService(),
+      config,
       errorManager: failingErrorManager,
       eventBus,
       logger,
+      pluginLoader,
       registry,
       storage,
     });

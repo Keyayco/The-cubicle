@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements Phase 1 of Cube OS: a browser-based, plugin-first core engine. Its job is to provide the foundational runtime services that later phases can build on without introducing application-specific behavior.
+This repository implements the Phase 1 Cube OS core engine and the first post-Phase-1 subsystem, a minimal Plugin Loader. Its job is to provide foundational runtime services and a stable plugin lifecycle without introducing application-specific behavior.
 
 The current codebase intentionally focuses on infrastructure:
 
@@ -15,8 +15,9 @@ The current codebase intentionally focuses on infrastructure:
 - Error normalization and capture
 - Storage abstraction
 - Minimal DOM rendering to prove successful boot
+- Trusted plugin definition registration and lifecycle
 
-It intentionally does not implement application modules, a workspace manager, a window system, a plugin loader, authentication, or cloud sync.
+It intentionally does not implement the Command System, a Demo Plugin, application modules, a workspace manager, a window system, authentication, or cloud sync.
 
 ## Architectural Philosophy
 
@@ -43,6 +44,7 @@ Core subsystems live under `src/core`:
 - `errors`: consistent error type and centralized error handling
 - `events`: in-process event bus
 - `logger`: structured logging with level filtering
+- `plugins`: host-provided plugin definitions and runtime-managed lifecycle
 - `registry`: runtime-owned service/object registry
 - `runtime`: lifecycle state machine and service exposure
 - `storage`: adapter contract and concrete storage implementations
@@ -69,12 +71,15 @@ Core subsystems live under `src/core`:
       errors/
       events/
       logger/
+      plugins/
       registry/
       runtime/
       storage/
       index.ts
   tests/
     core-engine.test.ts
+    core-hardening.test.ts
+    plugin-loader.test.ts
 ```
 
 ## Module Responsibilities
@@ -119,6 +124,14 @@ Core subsystems live under `src/core`:
 - Support `services`, `plugins`, and `commands` categories.
 - Reject duplicate registrations in a category.
 
+### `src/core/plugins`
+
+- Register trusted, host-provided plugin definitions in the existing `plugins` registry category.
+- Activate and deactivate definitions using the shared configuration, event bus, logger, registry, and storage services.
+- Report plugin lifecycle events and normalize activation/cleanup failures through `ErrorManager`.
+- Keep activation and cleanup synchronous to preserve the current synchronous Runtime lifecycle contract.
+- Do not dynamically import arbitrary module paths, sandbox plugin code, or add plugin UI.
+
 ### `src/core/runtime`
 
 - Own lifecycle state transitions.
@@ -162,6 +175,10 @@ Provides `register`, `unregister`, `get`, `has`, `list`, and `entries` over fixe
 
 Coordinates startup, shutdown, restart, status tracking, service registration, and lifecycle events.
 
+### `PluginLoader`
+
+Owns plugin definition lookup and activation state in the central `Registry`. Runtime loads registered definitions during initialization, unloads them in reverse registration order during shutdown, and reloads them on restart.
+
 ### `StorageAdapter` and `StorageService`
 
 All runtime code should depend on `StorageService` or the `StorageAdapter` contract, not on `window.localStorage` directly.
@@ -190,6 +207,11 @@ Important public contracts currently exported through `src/core/index.ts` includ
 - `Logger`
 - `RegistryCategory`
 - `Registry`
+- `PluginLoader`
+- `PluginDefinition`
+- `PluginContext`
+- `PluginFailureEvent`
+- `PluginStatus`
 - `CoreServiceId`
 - `CORE_SERVICE_IDS`
 - `RuntimeStatus`
@@ -208,8 +230,8 @@ The current runtime data flow is:
 
 1. `src/main.ts` calls `bootstrapApplication()`.
 2. Bootstrap derives environment config and applies optional runtime overrides.
-3. Bootstrap creates `ConfigurationService`, `Registry`, `EventBus`, `Logger`, `ErrorManager`, `StorageService`, and `Runtime`.
-4. `Runtime.initialize()` registers services, attaches global handlers, emits `runtime:initialized`, logs startup, and transitions to `running`.
+3. Bootstrap creates `ConfigurationService`, `Registry`, `EventBus`, `Logger`, `ErrorManager`, `StorageService`, `PluginLoader`, and `Runtime`.
+4. `Runtime.initialize()` registers services, attaches global handlers, loads registered plugins, emits `runtime:initialized`, logs startup, and transitions to `running`.
 5. Bootstrap resolves the root container and renders the root workspace view.
 6. The DOM reflects the current runtime status and workspace text from config.
 
@@ -230,10 +252,11 @@ The initialization order in `bootstrapApplication()` is intentional:
 4. Create logger using current logging config.
 5. Create error manager using logger and event bus.
 6. Create storage service using the selected adapter.
-7. Create runtime with all services.
-8. Initialize runtime.
-9. Resolve the DOM container.
-10. Render the root workspace.
+7. Create the Plugin Loader with the shared registry and services.
+8. Create runtime with all services.
+9. Initialize runtime.
+10. Resolve the DOM container.
+11. Render the root workspace.
 
 Do not render before `Runtime.initialize()` completes successfully.
 
@@ -253,6 +276,8 @@ Lifecycle behavior:
 - `initialize()` is idempotent for `running` and `initializing`.
 - `shutdown()` is idempotent for `stopping` and `stopped`.
 - `restart()` emits `runtime:restart-requested`, then calls `shutdown()` and `initialize()` in sequence.
+- `initialize()` loads registered plugins before the runtime enters `running`.
+- `shutdown()` unloads loaded plugins in reverse registration order before detaching global handlers.
 
 Lifecycle events currently emitted:
 
@@ -262,6 +287,9 @@ Lifecycle events currently emitted:
 - `runtime:shutdown-requested`
 - `runtime:stopped`
 - `runtime:restart-requested`
+- `plugin:loaded`
+- `plugin:unloaded`
+- `plugin:failed`
 
 ## Event System
 
@@ -313,6 +341,7 @@ Do not couple higher-level modules directly to a specific storage backend.
   - Storage service behavior via the memory adapter
   - Runtime lifecycle transition behavior across initialize, shutdown, and restart
   - Bootstrap success path, runtime registration, DOM rendering, and live runtime-status sync
+  - Plugin registration, lookup, activation, cleanup, error handling, and Runtime lifecycle integration
 
 Additional tests should focus on behavior contracts and lifecycle invariants rather than implementation trivia.
 
@@ -341,11 +370,14 @@ Additional tests should focus on behavior contracts and lifecycle invariants rat
 
 ## Extension And Plugin Rules
 
-- The runtime and registry already reserve a `plugins` registry category, but plugin loading is not implemented in Phase 1.
-- Future plugin systems should consume stable core services through the runtime/registry rather than bypassing them.
-- Any plugin loader must preserve the current separation between the core engine and feature modules.
+- Register plugin definitions through `PluginLoader`; the existing `Registry` remains the single source of truth for plugin identifiers.
+- Plugin activation receives the shared `config`, `eventBus`, `logger`, `registry`, and `storage` services through `PluginContext`.
+- Plugin definitions are trusted host-provided code. The Plugin Loader does not claim to provide isolation or sandboxing.
+- `activate` and its optional cleanup callback are synchronous so Runtime lifecycle remains synchronous.
+- Plugin failures are normalized, sent through `ErrorManager`, and emitted as `plugin:failed`.
+- Keep the Plugin Loader separate from plugin feature modules; no Demo Plugin or application-specific behavior belongs in core.
 
-Do not add plugin-specific behavior into the Phase 1 core without a deliberate architectural change.
+Do not add plugin-specific feature behavior into the core.
 
 ## Architectural Invariants
 
@@ -361,6 +393,7 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - Unexpected errors remain normalized and observable.
 - The event bus remains lightweight and duplicate-listener safe.
 - Phase 1 remains free of application modules and business-specific logic.
+- Plugin lifecycle uses the shared registry and Runtime lifecycle; it does not create a parallel plugin registry.
 
 ## Must-Not-Break Rules
 
@@ -370,7 +403,7 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - Do not register duplicate services into the registry.
 - Do not render the workspace before the runtime has initialized.
 - Do not turn `src/main.ts` into a second composition root.
-- Do not treat the presence of `plugins` and `commands` registry categories as proof that those systems already exist.
+- Do not bypass `PluginLoader` when activating registered plugins.
 
 ## Known Intentional Design Decisions
 
@@ -379,3 +412,4 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - `initialize()` avoids duplicate service registration by checking the registry before registering.
 - `LocalStorageAdapter` is only selected when configured and when `window` exists; otherwise bootstrap falls back to memory storage.
 - Global browser error handlers are attached only at runtime initialization, not at module import time.
+- Plugin definitions are registered and activated explicitly; no plugins are bundled or auto-discovered by default.

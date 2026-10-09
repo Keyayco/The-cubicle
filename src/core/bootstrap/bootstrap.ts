@@ -3,6 +3,7 @@ import type { CubeConfig, RuntimeMode } from '../config/default-config';
 import { ErrorManager } from '../errors/error-manager';
 import { EventBus } from '../events/event-bus';
 import { Logger } from '../logger/logger';
+import { PluginLoader } from '../plugins/plugin-loader';
 import { Registry } from '../registry/registry';
 import { Runtime } from '../runtime/runtime';
 import { LocalStorageAdapter } from '../storage/local-storage-adapter';
@@ -21,6 +22,7 @@ export interface BootstrapResult {
   errorManager: ErrorManager;
   eventBus: EventBus;
   logger: Logger;
+  pluginLoader: PluginLoader;
   registry: Registry;
   runtime: Runtime;
   storage: StorageService;
@@ -88,11 +90,19 @@ export const bootstrapApplication = (
   });
   const errorManager = new ErrorManager(logger, eventBus);
   const storage = new StorageService(createStorageAdapter(config.getAll()));
+  const pluginLoader = new PluginLoader(
+    registry,
+    { config, eventBus, logger, registry, storage },
+    errorManager,
+    eventBus,
+    logger,
+  );
   const runtime = new Runtime({
     config,
     errorManager,
     eventBus,
     logger,
+    pluginLoader,
     registry,
     storage,
   });
@@ -115,6 +125,7 @@ export const bootstrapApplication = (
     errorManager,
     eventBus,
     logger,
+    pluginLoader,
     registry,
     runtime,
     storage,

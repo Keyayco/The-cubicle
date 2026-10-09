@@ -3,6 +3,7 @@ import type { ErrorManager } from '../errors/error-manager';
 import type { EventBus } from '../events/event-bus';
 import type { LoggerContract } from '../logger/types';
 import type { Registry } from '../registry/registry';
+import type { PluginLoader } from '../plugins/plugin-loader';
 import type { StorageService } from '../storage/storage-service';
 import { CORE_SERVICE_IDS } from './service-identifiers';
 
@@ -24,6 +25,7 @@ export interface RuntimeServices {
   errorManager: ErrorManager;
   eventBus: EventBus;
   logger: LoggerContract;
+  pluginLoader: PluginLoader;
   registry: Registry;
   storage: StorageService;
 }
@@ -70,6 +72,7 @@ export class Runtime {
     try {
       this.registerCoreServices();
       this.services.errorManager.attachGlobalHandlers();
+      this.services.pluginLoader.loadAll();
       this.transitionTo('running');
       this.services.eventBus.emit('runtime:initialized', {
         status: this.status,
@@ -78,6 +81,7 @@ export class Runtime {
         status: this.status,
       });
     } catch (error) {
+      this.services.pluginLoader.unloadAll();
       this.transitionTo('error');
       const normalizedError = this.services.errorManager.capture(error, {
         source: 'runtime.initialize',
@@ -101,6 +105,7 @@ export class Runtime {
     this.services.eventBus.emit('runtime:shutdown-requested', undefined, {
       source: 'runtime',
     });
+    this.services.pluginLoader.unloadAll();
     this.services.errorManager.detachGlobalHandlers();
     this.services.logger.info('Runtime shutdown complete.', {
       status: 'stopped',
@@ -128,6 +133,7 @@ export class Runtime {
       [CORE_SERVICE_IDS.errorManager]: this.services.errorManager,
       [CORE_SERVICE_IDS.eventBus]: this.services.eventBus,
       [CORE_SERVICE_IDS.logger]: this.services.logger,
+      [CORE_SERVICE_IDS.pluginLoader]: this.services.pluginLoader,
       [CORE_SERVICE_IDS.registry]: this.services.registry,
       [CORE_SERVICE_IDS.runtime]: this,
       [CORE_SERVICE_IDS.storage]: this.services.storage,

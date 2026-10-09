@@ -1,6 +1,6 @@
-# Cube OS - Phase 1 Core Engine
+# Cube OS - Core Engine and Plugin Loader
 
-Cube Phase 1 establishes the production-grade foundation for a plugin-first, browser-based operating system. This repository intentionally implements only the core engine and avoids application modules, dashboards, and business-specific features.
+This repository contains the Phase 1 browser core engine and the first post-Phase-1 subsystem: a minimal Plugin Loader. The implementation remains infrastructure-first and does not include application modules, dashboards, or business-specific features.
 
 ## Scope
 
@@ -15,14 +15,17 @@ Phase 1 includes:
 - Configuration service
 - Centralized error handling
 
-Phase 1 explicitly excludes:
+The current implementation does not include:
 
 - Workspace manager
 - Window system
-- Plugin loader
+- Command System
+- Demo Plugin
 - Feature modules and apps
 - Authentication
 - Cloud sync
+
+The Plugin Loader activates trusted plugin definitions registered by the host. It does not dynamically import arbitrary module paths or sandbox plugin code.
 
 ## Architecture
 
@@ -34,6 +37,7 @@ src/
     errors/
     events/
     logger/
+    plugins/
     registry/
     runtime/
     storage/
@@ -46,6 +50,7 @@ src/
 - Separated concerns: each subsystem owns one responsibility and is wired together only at bootstrap time.
 - No circular dependencies: services depend on contracts and orchestration happens through the runtime.
 - Storage abstraction: callers depend on `StorageService`, not on `localStorage` or a specific persistence engine.
+- Plugin lifecycle: plugins use the shared core services and central registry; Runtime loads registered plugins on initialization and unloads them on shutdown.
 
 ## Development
 

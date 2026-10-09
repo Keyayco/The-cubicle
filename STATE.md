@@ -2,7 +2,7 @@
 
 ## Current Project Phase
 
-* Phase 1 core engine
+* Phase 1 core engine complete; Plugin Loader restored as the first post-Phase-1 subsystem
 
 ## Current Implementation Status
 
@@ -44,11 +44,13 @@
 
 * Public core barrel exports
 
+* Plugin Loader using the central plugin registry, core services, plugin lifecycle events, and Runtime initialize/shutdown/restart lifecycle
+
 * Vitest coverage for event bus, registry, storage, runtime lifecycle, bootstrap, and Phase 1 hardening paths
 
 ## Components Currently Being Implemented
 
-* No component currently being implemented; the latest task activated the existing hardening test suite
+* Plugin Loader restoration is complete; Command System work is the next planned task
 
 ## Components Not Yet Implemented
 
@@ -56,7 +58,9 @@
 
 * Window system
 
-* Plugin loader
+* Command System
+
+* Demo Plugin
 
 * Feature modules and apps
 
@@ -75,6 +79,7 @@ src/
     errors/
     events/
     logger/
+    plugins/
     registry/
     runtime/
     storage/
@@ -82,6 +87,7 @@ src/
 tests/
   core-engine.test.ts
   core-hardening.test.ts
+  plugin-loader.test.ts
 ```
 
 ## Current Important Files
@@ -106,6 +112,8 @@ tests/
 
 * `tests/core-hardening.test.ts`
 
+* `tests/plugin-loader.test.ts`
+
 ## Current Public APIs
 
 The public core exports currently come from `src/core/index.ts` and include:
@@ -121,6 +129,8 @@ The public core exports currently come from `src/core/index.ts` and include:
 * Logger types and implementation
 
 * Registry
+
+* Plugin Loader and plugin lifecycle types
 
 * Runtime and canonical service identifiers
 
@@ -142,21 +152,27 @@ The public core exports currently come from `src/core/index.ts` and include:
 
   * Runtime lifecycle transition events across initialize, shutdown, and restart
 
+  * Plugin registration, lookup, activation, cleanup, failure reporting, duplicate handling, and reentrant lifecycle protection
+
+  * Runtime shutdown cleanup and restart reactivation for registered plugins
+
   * Bootstrap success path, root workspace render, and live status updates during lifecycle changes
 
   * Runtime failure normalization, config override behavior, global error handlers, logger filtering, and local-storage namespacing
 
 ## Current Build Status
 
-* Verified on 2026-09-28 after installing dependencies with `npm ci`
+* Verified on 2026-10-09 using the already-installed dependency tree; a clean `npm ci` was blocked by the package firewall for `tinypool@1.1.1`
 
-* `npm test`: passing (17 tests across 2 files)
+* `npm test`: passing (26 tests across 3 files)
 
 * `npm run build`: passing
 
 ## Current Known Limitations
 
-* No plugin loading despite reserved registry support for `plugins`
+* Plugin definitions are trusted host-provided code; the loader does not sandbox code or dynamically import arbitrary paths
+
+* Plugin activation and cleanup are synchronous to match the current Runtime lifecycle contract
 
 * No command execution system despite reserved registry support for `commands`
 
@@ -182,7 +198,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Investigate the reported `npm audit` high severity vulnerability when dependency maintenance is in scope
 
-* Decide whether to continue Phase 1 hardening or start a later phase
+* Implement the Command System; do not begin Demo Plugin or Workspace Manager yet
 
 ## Current Assumptions
 
@@ -196,7 +212,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * No confirmed active implementation blocker inside the codebase
 
-* The next product objective after Phase 1 is not encoded in the repository yet
+* The Command System is the next planned subsystem; the Demo Plugin and Workspace Manager remain out of scope for that step
 
 ## Most Recently Changed
 
@@ -206,11 +222,9 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Existing hardening tests were previously named `core-hardening-file.ts`, so Vitest ignored them; they are now named `core-hardening.test.ts` and execute as part of the normal test command
 
+* Inspection found Plugin Loader absent from `main`, all visible branches, and all four pull requests despite the requested phase sequence; it was restored using the existing plugin registry and Runtime/EventBus contracts
+
 ## What Should Be Worked On Next
 
-* After verification, choose the next concrete objective:
-
-  * harden Phase 1 further with additional failure-path and config-override tests, or
-
-  * begin the next planned subsystem such as plugin loading or workspace management
+* Implement the Command System next, using the existing `commands` registry category and the now-available Plugin Loader integration point
 

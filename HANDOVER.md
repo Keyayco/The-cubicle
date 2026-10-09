@@ -2,7 +2,7 @@
 
 ## Project Context
 
-This repository is `cube-os-core-engine`, a TypeScript frontend application built with Vite and tested with Vitest. It currently implements Phase 1 of Cube OS: the foundational browser runtime and its core services, not the higher-level OS features.
+This repository is `cube-os-core-engine`, a TypeScript frontend application built with Vite and tested with Vitest. It implements the Phase 1 browser core engine and the first post-Phase-1 subsystem, a minimal Plugin Loader; higher-level OS features remain separate.
 
 The current codebase is intentionally infrastructure-first. It proves that the runtime can be bootstrapped, core services can be registered, and a minimal workspace shell can be rendered.
 
@@ -11,13 +11,15 @@ The current codebase is intentionally infrastructure-first. It proves that the r
 - Core engine services are implemented under `src/core`
 - The browser entrypoint is `src/main.ts`
 - Bootstrap orchestration lives in `src/core/bootstrap/bootstrap.ts`
-- Current tests cover event bus, registry, storage, bootstrap success, and Phase 1 hardening paths
+- Current tests cover event bus, registry, storage, bootstrap success, Phase 1 hardening, and Plugin Loader paths
 - Verification has been run in this environment with `npm ci`, `npm test`, and `npm run build`
 - Runtime lifecycle transitions now emit a generic `runtime:status-changed` event
 - The root workspace shell now updates its displayed runtime status when lifecycle changes occur
-- Higher-level systems such as plugin loading and workspace management are not implemented yet
+- Workspace management and the window system are not implemented yet
 - The root handover documentation has been added and must be kept current
 - Phase 1 hardening coverage is active in `tests/core-hardening.test.ts`
+- The Plugin Loader is implemented in `src/core/plugins/plugin-loader.ts` and is part of the Runtime service lifecycle
+- The next planned subsystem is the Command System; do not begin Demo Plugin or Workspace Manager as part of that work
 
 ## Read First
 
@@ -35,18 +37,14 @@ Before changing code, inspect these files and directories in this order:
 10. `src/core/config/`
 11. `src/core/events/`
 12. `src/core/registry/`
-13. `src/core/storage/`
-14. `src/core/errors/`
-15. `tests/`
+13. `src/core/plugins/`
+14. `src/core/storage/`
+15. `src/core/errors/`
+16. `tests/`
 
 ## Current Objective
 
-The immediate objective after this handover setup is to keep the new handover files synchronized with reality and then continue with the next explicit engineering task.
-
-If no separate product task has been provided, the most reasonable next step is to either:
-
-- harden the Phase 1 runtime with additional lifecycle and failure-path tests, or
-- begin the first deliberately planned post-Phase-1 subsystem
+The next planned subsystem is the Command System. Keep its implementation separate from Demo Plugin and Workspace Manager.
 
 ## Recommended Investigation Order
 
@@ -72,21 +70,23 @@ If no separate product task has been provided, the most reasonable next step is 
 
 - `src/main.ts` is intentionally thin and should stay that way.
 - `bootstrapApplication()` is the composition root and is where service wiring belongs.
-- `Runtime.initialize()` registers core services into the registry and attaches browser-level error handlers.
+- `Runtime.initialize()` registers core services, attaches browser-level error handlers, and loads registered plugins.
 - `Runtime` now emits `runtime:status-changed` whenever its inspectable status moves between lifecycle states.
-- The runtime already reserves registry categories for `plugins` and `commands`, but those systems do not exist yet.
+- `PluginLoader` stores trusted definitions in the central `plugins` category and unloads them in reverse order on shutdown; restart loads them again.
+- Plugin activation and cleanup are synchronous; arbitrary module imports and sandboxing are not implemented.
+- The `commands` registry category exists, but the Command System is not implemented yet.
 - `StorageService` is the stable abstraction; the rest of the system should not depend directly on `window.localStorage`.
 - Current UI rendering is intentionally minimal and exists only to validate that the core engine booted successfully, while now reflecting runtime status changes live.
 - `src/core/index.ts` is the public export surface for reusable core APIs.
 
 ## Do Not Assume
 
-- Do not assume plugin support exists because `RegistryCategory` includes `plugins`.
+- Plugin loading exists, but do not assume dynamic imports, sandboxing, or a bundled plugin exists.
 - Do not assume command execution exists because `RegistryCategory` includes `commands`.
 - Do not assume runtime failure paths or config override edge cases have comprehensive test coverage.
 - Do not assume build and test status if you have not run them in the current state.
 - Do not assume dependencies are already installed in a clean environment; run `npm ci` first.
-- Do not assume a next phase has already been decided just because Phase 1 exclusions are listed in `README.md`.
+- The current subsystem sequence is Core Engine → Plugin Loader → Command System → Demo Plugin → Workspace Manager; keep Demo Plugin and Workspace Manager out of the Command System task.
 - Do not assume any new public API is safe to expose without updating `src/core/index.ts`, tests, and documentation together.
 
 ## Next Steps
@@ -95,9 +95,9 @@ Unless a user gives a more specific task, the clearest next actions are:
 
 1. Verify `npm test`
 2. Verify `npm run build`
-3. Review the now-active hardening coverage and address any additional gaps found
-4. Record any noteworthy findings in `LOGS.md`
-5. Decide whether to harden Phase 1 further or start the next subsystem with a clearly documented objective
+3. Build the Command System around the existing `commands` registry category and Plugin Loader
+4. Add focused tests for registration, lookup, execution, errors, duplicates, and runtime/plugin integration
+5. Update `STATE.md`, `HANDOVER.md`, and `LOGS.md`; keep Workspace Manager and Demo Plugin out of scope
 
 ## Documentation Workflow
 

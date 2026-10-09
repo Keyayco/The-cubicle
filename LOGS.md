@@ -134,3 +134,35 @@ The repository contained `tests/core-hardening-file.ts` with runtime failure, co
 ### Impact
 
 Phase 1 now has automated coverage for runtime failure normalization, configuration override merging and immutability, browser error handler attachment/detachment, logger filtering, and local-storage namespacing. No production source behavior required changes.
+
+## 2026-10-09 - Restored Plugin Loader on Main
+
+### Issue
+
+The requested architecture sequence identified Plugin Loader as complete, but inspection of `main`, all five visible branch heads, and all four pull requests found no Plugin Loader source or tests. `RULES.md`, `STATE.md`, `HANDOVER.md`, and `README.md` also explicitly described it as unimplemented.
+
+### Resolution
+
+- Added `PluginLoader` using the existing `Registry` `plugins` category as the single source of truth
+- Added trusted host-provided `PluginDefinition` activation and optional synchronous cleanup through a stable `PluginContext`
+- Registered the loader as a core runtime service
+- Load registered plugins during `Runtime.initialize()`, unload in reverse registration order on shutdown, and reload on restart
+- Emit `plugin:loaded`, `plugin:unloaded`, and `plugin:failed`; normalize activation and cleanup errors through `ErrorManager`
+- Added focused lifecycle, lookup, duplicate, invalid-definition, reentrancy, and error tests
+- Updated `README.md`, `RULES.md`, `STATE.md`, and `HANDOVER.md`
+
+### Verification
+
+- Baseline at `d34ef9d`: 17 tests passing; production build passing
+- Plugin Loader: 26 tests passing across 3 files; production build passing
+- `npm ci` was attempted but the package firewall blocked the pinned `tinypool@1.1.1`; verification used the matching preinstalled dependency tree
+
+### Limitations
+
+- Plugins are trusted host-provided definitions; no sandbox or dynamic import path support
+- Activation and cleanup are synchronous to preserve the current Runtime lifecycle contract
+- No Demo Plugin, Command System, or Workspace Manager was added in this prerequisite commit
+
+### Next
+
+Implement the Command System using the existing `commands` registry category and Plugin Loader integration. Keep Demo Plugin and Workspace Manager out of scope.
