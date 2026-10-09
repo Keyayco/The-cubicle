@@ -1,7 +1,7 @@
 import type { CubeConfig } from '../config/default-config';
 import type { Runtime } from '../runtime/runtime';
-import type { WorkspaceSystem } from '../../workspace';
-import { renderWorkspaceShell } from '../../workspace';
+import type { WorkspaceSystem } from '../../workspace/initialize-workspace-system';
+import { renderWorkspaceShell } from '../../workspace/ui/workspace-shell';
 
 /**
  * Renders the root workspace shell for the active Cube runtime.

@@ -1,4 +1,6 @@
-import type { EventBus, LoggerContract, StorageService } from '../../core';
+import type { EventBus } from '../../core/events/event-bus';
+import type { LoggerContract } from '../../core/logger/types';
+import type { StorageService } from '../../core/storage/storage-service';
 import type { WorkspaceStateStore } from '../state/workspace-state';
 import type { WorkspaceItem, WorkspaceSystemState } from '../types';
 

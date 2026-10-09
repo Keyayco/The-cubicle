@@ -1,4 +1,4 @@
-import type { Registry } from '../../core';
+import type { Registry } from '../../core/registry/registry';
 import type { WorkspaceCommand } from '../types';
 import type { WorkspaceCommandDependencies } from './types';
 

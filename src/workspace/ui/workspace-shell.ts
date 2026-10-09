@@ -1,5 +1,5 @@
-import type { Runtime } from '../../core';
-import type { CubeConfig } from '../../core';
+import type { CubeConfig } from '../../core/config/default-config';
+import type { Runtime } from '../../core/runtime/runtime';
 import type { CommandPalette } from './command-palette';
 import { renderDock } from './dock';
 import { renderSidebar } from './sidebar';

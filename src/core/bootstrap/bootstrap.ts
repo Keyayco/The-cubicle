@@ -12,7 +12,7 @@ import { StorageService } from '../storage/storage-service';
 import {
   initializeWorkspaceSystem,
   type WorkspaceSystem,
-} from '../../workspace';
+} from '../../workspace/initialize-workspace-system';
 import { renderRootWorkspace } from './root-workspace';
 
 export interface BootstrapOptions {

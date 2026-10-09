@@ -1,4 +1,5 @@
-import type { EventBus, LoggerContract } from '../../core';
+import type { EventBus } from '../../core/events/event-bus';
+import type { LoggerContract } from '../../core/logger/types';
 import type { LayoutManager } from '../layout/layout-manager';
 import type { WorkspaceStateStore } from '../state/workspace-state';
 import type { WindowBounds, WindowItem, WorkspaceItem } from '../types';

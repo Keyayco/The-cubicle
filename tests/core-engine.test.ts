@@ -73,7 +73,7 @@ describe('StorageService', () => {
 });
 
 describe('bootstrapApplication', () => {
-  it('boots the runtime, registers core services, and renders the root workspace', () => {
+  it('boots the runtime, registers core services, and renders the workspace shell', async () => {
     document.body.innerHTML = '<div id="app"></div>';
 
     const result = bootstrapApplication({
@@ -83,11 +83,12 @@ describe('bootstrapApplication', () => {
         },
       },
     });
+    await result.workspace.ready;
 
     expect(result.runtime.getStatus()).toBe('running');
     expect(result.registry.has('services', CORE_SERVICE_IDS.runtime)).toBe(true);
     expect(result.registry.has('services', CORE_SERVICE_IDS.logger)).toBe(true);
-    expect(document.querySelector('.cube-root-workspace')).not.toBeNull();
-    expect(document.body.textContent).toContain('Core Engine');
+    expect(document.querySelector('.cube-shell')).not.toBeNull();
+    expect(document.body.textContent).toContain('Workspace');
   });
 });

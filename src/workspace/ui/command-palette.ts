@@ -1,4 +1,5 @@
-import type { EventBus, Registry } from '../../core';
+import type { EventBus } from '../../core/events/event-bus';
+import type { Registry } from '../../core/registry/registry';
 import type { WorkspaceCommand } from '../types';
 
 const COMMAND_PALETTE_EVENT = 'command-palette:executed';
