@@ -1,4 +1,5 @@
 import type { ConfigurationService } from '../config/config-service';
+import type { CommandService } from '../commands/command-service';
 import type { ErrorManager } from '../errors/error-manager';
 import type { EventBus } from '../events/event-bus';
 import type { LoggerContract } from '../logger/types';
@@ -21,6 +22,7 @@ export interface RuntimeStatusChange {
 }
 
 export interface RuntimeServices {
+  commandService: CommandService;
   config: ConfigurationService;
   errorManager: ErrorManager;
   eventBus: EventBus;
@@ -129,6 +131,7 @@ export class Runtime {
 
   private registerCoreServices(): void {
     const services = {
+      [CORE_SERVICE_IDS.commandService]: this.services.commandService,
       [CORE_SERVICE_IDS.config]: this.services.config,
       [CORE_SERVICE_IDS.errorManager]: this.services.errorManager,
       [CORE_SERVICE_IDS.eventBus]: this.services.eventBus,

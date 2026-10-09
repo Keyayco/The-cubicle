@@ -1,5 +1,6 @@
 import { ConfigurationService, type DeepPartial } from '../config/config-service';
 import type { CubeConfig, RuntimeMode } from '../config/default-config';
+import { CommandService } from '../commands/command-service';
 import { ErrorManager } from '../errors/error-manager';
 import { EventBus } from '../events/event-bus';
 import { Logger } from '../logger/logger';
@@ -19,6 +20,7 @@ export interface BootstrapOptions {
 
 export interface BootstrapResult {
   config: ConfigurationService;
+  commandService: CommandService;
   errorManager: ErrorManager;
   eventBus: EventBus;
   logger: Logger;
@@ -90,14 +92,21 @@ export const bootstrapApplication = (
   });
   const errorManager = new ErrorManager(logger, eventBus);
   const storage = new StorageService(createStorageAdapter(config.getAll()));
+  const commandService = new CommandService(
+    registry,
+    eventBus,
+    errorManager,
+    logger,
+  );
   const pluginLoader = new PluginLoader(
     registry,
-    { config, eventBus, logger, registry, storage },
+    { commands: commandService, config, eventBus, logger, registry, storage },
     errorManager,
     eventBus,
     logger,
   );
   const runtime = new Runtime({
+    commandService,
     config,
     errorManager,
     eventBus,
@@ -121,6 +130,7 @@ export const bootstrapApplication = (
   }
 
   return {
+    commandService,
     config,
     errorManager,
     eventBus,

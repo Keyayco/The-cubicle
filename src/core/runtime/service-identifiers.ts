@@ -2,6 +2,7 @@
  * Canonical identifiers for core runtime services.
  */
 export const CORE_SERVICE_IDS = {
+  commandService: 'commandService',
   config: 'config',
   errorManager: 'errorManager',
   eventBus: 'eventBus',

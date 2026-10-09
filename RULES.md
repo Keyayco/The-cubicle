@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements the Phase 1 Cube OS core engine and the first post-Phase-1 subsystem, a minimal Plugin Loader. Its job is to provide foundational runtime services and a stable plugin lifecycle without introducing application-specific behavior.
+This repository implements the Phase 1 Cube OS core engine, the Plugin Loader, and the Command System. Its job is to provide foundational runtime services, plugin lifecycle, and command dispatch without introducing application-specific behavior.
 
 The current codebase intentionally focuses on infrastructure:
 
@@ -16,8 +16,9 @@ The current codebase intentionally focuses on infrastructure:
 - Storage abstraction
 - Minimal DOM rendering to prove successful boot
 - Trusted plugin definition registration and lifecycle
+- Command registration, lookup, and execution
 
-It intentionally does not implement the Command System, a Demo Plugin, application modules, a workspace manager, a window system, authentication, or cloud sync.
+It intentionally does not implement a Demo Plugin, command palette or keyboard shortcut UI, application modules, a workspace manager, a window system, authentication, or cloud sync.
 
 ## Architectural Philosophy
 
@@ -41,6 +42,7 @@ Core subsystems live under `src/core`:
 
 - `bootstrap`: startup orchestration and root rendering
 - `config`: immutable configuration defaults and merge logic
+- `commands`: command definitions, shared-registry operations, and dispatch
 - `errors`: consistent error type and centralized error handling
 - `events`: in-process event bus
 - `logger`: structured logging with level filtering
@@ -67,6 +69,7 @@ Core subsystems live under `src/core`:
     styles.css
     core/
       bootstrap/
+      commands/
       config/
       errors/
       events/
@@ -80,6 +83,7 @@ Core subsystems live under `src/core`:
     core-engine.test.ts
     core-hardening.test.ts
     plugin-loader.test.ts
+    command-service.test.ts
 ```
 
 ## Module Responsibilities
@@ -98,6 +102,14 @@ Core subsystems live under `src/core`:
 - Provide immutable default configuration via `DEFAULT_CONFIG`.
 - Merge defaults, environment config, and runtime overrides.
 - Freeze the resulting configuration snapshot before exposing it.
+
+### `src/core/commands`
+
+- Register command definitions in the existing `commands` registry category.
+- Validate command identifiers and metadata; rely on the shared Registry for duplicate rejection.
+- Provide command lookup, listing, unregister, and sync/async execution.
+- Emit `command:executed` and `command:failed`; normalize handler failures through `ErrorManager`.
+- Remain UI-agnostic: no palette, shortcuts, or workspace-specific commands.
 
 ### `src/core/errors`
 
@@ -179,6 +191,10 @@ Coordinates startup, shutdown, restart, status tracking, service registration, a
 
 Owns plugin definition lookup and activation state in the central `Registry`. Runtime loads registered definitions during initialization, unloads them in reverse registration order during shutdown, and reloads them on restart.
 
+### `CommandService`
+
+Owns command definition lookup and execution through the same central `Registry`. It does not keep a parallel command map. Command metadata (`id`, `title`, `keywords`) matches the repository's historical workspace-command contract, while dispatch is handled by the core service rather than a UI.
+
 ### `StorageAdapter` and `StorageService`
 
 All runtime code should depend on `StorageService` or the `StorageAdapter` contract, not on `window.localStorage` directly.
@@ -207,6 +223,10 @@ Important public contracts currently exported through `src/core/index.ts` includ
 - `Logger`
 - `RegistryCategory`
 - `Registry`
+- `CommandService`
+- `CommandDefinition`
+- `CommandExecutedEvent`
+- `CommandFailedEvent`
 - `PluginLoader`
 - `PluginDefinition`
 - `PluginContext`
@@ -230,10 +250,11 @@ The current runtime data flow is:
 
 1. `src/main.ts` calls `bootstrapApplication()`.
 2. Bootstrap derives environment config and applies optional runtime overrides.
-3. Bootstrap creates `ConfigurationService`, `Registry`, `EventBus`, `Logger`, `ErrorManager`, `StorageService`, `PluginLoader`, and `Runtime`.
+3. Bootstrap creates `ConfigurationService`, `Registry`, `EventBus`, `Logger`, `ErrorManager`, `StorageService`, `CommandService`, `PluginLoader`, and `Runtime`.
 4. `Runtime.initialize()` registers services, attaches global handlers, loads registered plugins, emits `runtime:initialized`, logs startup, and transitions to `running`.
-5. Bootstrap resolves the root container and renders the root workspace view.
-6. The DOM reflects the current runtime status and workspace text from config.
+5. Plugins can register commands through `PluginContext.commands`; the service uses the same `Registry` `commands` bucket.
+6. Bootstrap resolves the root container and renders the root workspace view.
+7. The DOM reflects the current runtime status and workspace text from config.
 
 During failures:
 
@@ -252,11 +273,12 @@ The initialization order in `bootstrapApplication()` is intentional:
 4. Create logger using current logging config.
 5. Create error manager using logger and event bus.
 6. Create storage service using the selected adapter.
-7. Create the Plugin Loader with the shared registry and services.
-8. Create runtime with all services.
-9. Initialize runtime.
-10. Resolve the DOM container.
-11. Render the root workspace.
+7. Create `CommandService` with the shared registry, event bus, logger, and error manager.
+8. Create the Plugin Loader with the shared registry and services, including `CommandService`.
+9. Create runtime with all services.
+10. Initialize runtime.
+11. Resolve the DOM container.
+12. Render the root workspace.
 
 Do not render before `Runtime.initialize()` completes successfully.
 
@@ -290,6 +312,8 @@ Lifecycle events currently emitted:
 - `plugin:loaded`
 - `plugin:unloaded`
 - `plugin:failed`
+- `command:executed`
+- `command:failed`
 
 ## Event System
 
@@ -307,6 +331,15 @@ If asynchronous or buffered delivery is added later, it must be introduced delib
 - `register()` throws on duplicate identifiers in a category.
 - Runtime core services are registered under the `services` category using `CORE_SERVICE_IDS`.
 - Service retrieval should go through `Runtime.getService()` or `Registry.get('services', ...)` rather than ad hoc globals.
+
+## Command System
+
+- `CommandService` uses the shared `Registry` `commands` category for storage and duplicate handling.
+- Command definitions have an identifier, UI-neutral display metadata (`title`, `keywords`), and an execution handler.
+- `CommandService.execute()` awaits synchronous or asynchronous handlers and returns the result.
+- Unknown IDs throw `CubeError` with `COMMAND_NOT_FOUND`; handler failures are normalized and captured centrally.
+- Plugins receive `CommandService` through `PluginContext.commands`; plugin cleanup owns unregistering commands it registered.
+- No keyboard shortcuts, command palette, or workspace-specific commands are part of core.
 
 ## Storage System
 
@@ -372,10 +405,12 @@ Additional tests should focus on behavior contracts and lifecycle invariants rat
 
 - Register plugin definitions through `PluginLoader`; the existing `Registry` remains the single source of truth for plugin identifiers.
 - Plugin activation receives the shared `config`, `eventBus`, `logger`, `registry`, and `storage` services through `PluginContext`.
+- Plugins receive the shared `CommandService` through `PluginContext.commands`; command definitions are stored in the same core `Registry`.
 - Plugin definitions are trusted host-provided code. The Plugin Loader does not claim to provide isolation or sandboxing.
 - `activate` and its optional cleanup callback are synchronous so Runtime lifecycle remains synchronous.
 - Plugin failures are normalized, sent through `ErrorManager`, and emitted as `plugin:failed`.
 - Keep the Plugin Loader separate from plugin feature modules; no Demo Plugin or application-specific behavior belongs in core.
+- Plugin cleanup should unregister commands owned by that plugin through `CommandService.unregister()`.
 
 Do not add plugin-specific feature behavior into the core.
 

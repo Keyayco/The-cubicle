@@ -4,9 +4,11 @@ import type { EventBus } from '../events/event-bus';
 import type { LoggerContract } from '../logger/types';
 import type { Registry } from '../registry/registry';
 import type { ConfigurationService } from '../config/config-service';
+import type { CommandService } from '../commands/command-service';
 import type { StorageService } from '../storage/storage-service';
 
 export interface PluginContext {
+  commands: CommandService;
   config: ConfigurationService;
   eventBus: EventBus;
   logger: LoggerContract;

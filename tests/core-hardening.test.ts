@@ -1,5 +1,6 @@
 import {
   ConfigurationService,
+  CommandService,
   CubeError,
   ErrorManager,
   EventBus,
@@ -28,9 +29,15 @@ describe('Runtime failure path', () => {
       detachGlobalHandlers: () => undefined,
     } as unknown as ErrorManager;
     const config = new ConfigurationService();
+    const commandService = new CommandService(
+      registry,
+      eventBus,
+      failingErrorManager,
+      logger,
+    );
     const pluginLoader = new PluginLoader(
       registry,
-      { config, eventBus, logger, registry, storage },
+      { commands: commandService, config, eventBus, logger, registry, storage },
       failingErrorManager,
       eventBus,
       logger,
@@ -38,6 +45,7 @@ describe('Runtime failure path', () => {
 
     const runtime = new Runtime({
       config,
+      commandService,
       errorManager: failingErrorManager,
       eventBus,
       logger,

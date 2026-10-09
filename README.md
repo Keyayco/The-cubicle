@@ -1,6 +1,6 @@
-# Cube OS - Core Engine and Plugin Loader
+# Cube OS - Core Engine, Plugin Loader, and Command System
 
-This repository contains the Phase 1 browser core engine and the first post-Phase-1 subsystem: a minimal Plugin Loader. The implementation remains infrastructure-first and does not include application modules, dashboards, or business-specific features.
+This repository contains the Phase 1 browser core engine, the Plugin Loader, and the Command System. The implementation remains infrastructure-first and does not include application modules, dashboards, or business-specific features.
 
 ## Scope
 
@@ -19,7 +19,6 @@ The current implementation does not include:
 
 - Workspace manager
 - Window system
-- Command System
 - Demo Plugin
 - Feature modules and apps
 - Authentication
@@ -33,6 +32,7 @@ The Plugin Loader activates trusted plugin definitions registered by the host. I
 src/
   core/
     bootstrap/
+    commands/
     config/
     errors/
     events/
@@ -51,6 +51,7 @@ src/
 - No circular dependencies: services depend on contracts and orchestration happens through the runtime.
 - Storage abstraction: callers depend on `StorageService`, not on `localStorage` or a specific persistence engine.
 - Plugin lifecycle: plugins use the shared core services and central registry; Runtime loads registered plugins on initialization and unloads them on shutdown.
+- Commands: command definitions use the central `commands` registry category and are dispatched by `CommandService`; plugins can register and remove commands through their plugin context.
 
 ## Development
 

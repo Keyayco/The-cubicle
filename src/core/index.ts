@@ -1,4 +1,10 @@
 export { bootstrapApplication } from './bootstrap/bootstrap';
+export {
+  CommandService,
+  type CommandDefinition,
+  type CommandExecutedEvent,
+  type CommandFailedEvent,
+} from './commands/command-service';
 export type {
   BootstrapOptions,
   BootstrapResult,

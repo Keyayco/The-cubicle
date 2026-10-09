@@ -11,15 +11,15 @@ The current codebase is intentionally infrastructure-first. It proves that the r
 - Core engine services are implemented under `src/core`
 - The browser entrypoint is `src/main.ts`
 - Bootstrap orchestration lives in `src/core/bootstrap/bootstrap.ts`
-- Current tests cover event bus, registry, storage, bootstrap success, Phase 1 hardening, and Plugin Loader paths
-- Verification has been run in this environment with `npm ci`, `npm test`, and `npm run build`
+- Current tests cover event bus, registry, storage, bootstrap success, Phase 1 hardening, Plugin Loader, and Command System paths
+- The current test/build verification used the matching preinstalled dependency tree; `npm ci` is blocked by the package firewall for pinned `tinypool@1.1.1`
 - Runtime lifecycle transitions now emit a generic `runtime:status-changed` event
 - The root workspace shell now updates its displayed runtime status when lifecycle changes occur
 - Workspace management and the window system are not implemented yet
 - The root handover documentation has been added and must be kept current
 - Phase 1 hardening coverage is active in `tests/core-hardening.test.ts`
 - The Plugin Loader is implemented in `src/core/plugins/plugin-loader.ts` and is part of the Runtime service lifecycle
-- The next planned subsystem is the Command System; do not begin Demo Plugin or Workspace Manager as part of that work
+- The Command System is implemented in `src/core/commands/command-service.ts`; the next planned subsystem is Demo Plugin, not Workspace Manager
 
 ## Read First
 
@@ -38,13 +38,14 @@ Before changing code, inspect these files and directories in this order:
 11. `src/core/events/`
 12. `src/core/registry/`
 13. `src/core/plugins/`
-14. `src/core/storage/`
-15. `src/core/errors/`
-16. `tests/`
+14. `src/core/commands/`
+15. `src/core/storage/`
+16. `src/core/errors/`
+17. `tests/`
 
 ## Current Objective
 
-The next planned subsystem is the Command System. Keep its implementation separate from Demo Plugin and Workspace Manager.
+The Command System is complete. The next planned subsystem is Demo Plugin; keep Workspace Manager out of that work.
 
 ## Recommended Investigation Order
 
@@ -74,7 +75,9 @@ The next planned subsystem is the Command System. Keep its implementation separa
 - `Runtime` now emits `runtime:status-changed` whenever its inspectable status moves between lifecycle states.
 - `PluginLoader` stores trusted definitions in the central `plugins` category and unloads them in reverse order on shutdown; restart loads them again.
 - Plugin activation and cleanup are synchronous; arbitrary module imports and sandboxing are not implemented.
-- The `commands` registry category exists, but the Command System is not implemented yet.
+- `CommandService` stores definitions in the shared `commands` registry category and dispatches commands with `command:executed` / `command:failed` events.
+- Plugin code gets the command service through `PluginContext.commands` and should unregister plugin-owned commands in its cleanup callback.
+- No command palette, keyboard shortcuts, Demo Plugin, or Workspace Manager is implemented in this step.
 - `StorageService` is the stable abstraction; the rest of the system should not depend directly on `window.localStorage`.
 - Current UI rendering is intentionally minimal and exists only to validate that the core engine booted successfully, while now reflecting runtime status changes live.
 - `src/core/index.ts` is the public export surface for reusable core APIs.
@@ -82,11 +85,11 @@ The next planned subsystem is the Command System. Keep its implementation separa
 ## Do Not Assume
 
 - Plugin loading exists, but do not assume dynamic imports, sandboxing, or a bundled plugin exists.
-- Do not assume command execution exists because `RegistryCategory` includes `commands`.
+- The Command System is UI-agnostic; do not assume a palette or keyboard shortcut layer exists.
 - Do not assume runtime failure paths or config override edge cases have comprehensive test coverage.
 - Do not assume build and test status if you have not run them in the current state.
 - Do not assume dependencies are already installed in a clean environment; run `npm ci` first.
-- The current subsystem sequence is Core Engine → Plugin Loader → Command System → Demo Plugin → Workspace Manager; keep Demo Plugin and Workspace Manager out of the Command System task.
+- The subsystem sequence is Core Engine → Plugin Loader → Command System → Demo Plugin → Workspace Manager; implement the Demo Plugin next and do not skip ahead to Workspace Manager.
 - Do not assume any new public API is safe to expose without updating `src/core/index.ts`, tests, and documentation together.
 
 ## Next Steps
@@ -95,9 +98,9 @@ Unless a user gives a more specific task, the clearest next actions are:
 
 1. Verify `npm test`
 2. Verify `npm run build`
-3. Build the Command System around the existing `commands` registry category and Plugin Loader
-4. Add focused tests for registration, lookup, execution, errors, duplicates, and runtime/plugin integration
-5. Update `STATE.md`, `HANDOVER.md`, and `LOGS.md`; keep Workspace Manager and Demo Plugin out of scope
+3. Implement the Demo Plugin using the Plugin Loader and Command Service
+4. Keep Workspace Manager and UI layers out of the Demo Plugin work unless explicitly planned
+5. Update `STATE.md`, `HANDOVER.md`, and `LOGS.md` after the next implementation
 
 ## Documentation Workflow
 

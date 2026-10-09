@@ -1,6 +1,7 @@
 import {
   bootstrapApplication,
   CubeError,
+  CommandService,
   ConfigurationService,
   CORE_SERVICE_IDS,
   ErrorManager,
@@ -89,15 +90,22 @@ describe('Runtime', () => {
     });
     const errorManager = new ErrorManager(logger, eventBus);
     const storage = new StorageService(new MemoryStorageAdapter());
+    const commandService = new CommandService(
+      registry,
+      eventBus,
+      errorManager,
+      logger,
+    );
     const pluginLoader = new PluginLoader(
       registry,
-      { config, eventBus, logger, registry, storage },
+      { commands: commandService, config, eventBus, logger, registry, storage },
       errorManager,
       eventBus,
       logger,
     );
     const runtime = new Runtime({
       config,
+      commandService,
       errorManager,
       eventBus,
       logger,
@@ -150,6 +158,9 @@ describe('bootstrapApplication', () => {
     expect(result.registry.has('services', CORE_SERVICE_IDS.runtime)).toBe(true);
     expect(result.registry.has('services', CORE_SERVICE_IDS.logger)).toBe(true);
     expect(
+      result.registry.has('services', CORE_SERVICE_IDS.commandService),
+    ).toBe(true);
+    expect(
       result.registry.has('services', CORE_SERVICE_IDS.pluginLoader),
     ).toBe(true);
     expect(document.querySelector('.cube-root-workspace')).not.toBeNull();
@@ -197,25 +208,36 @@ describe('bootstrapApplication', () => {
       },
     });
     const activate = vi.fn();
-    const cleanup = vi.fn();
+    const cleanup = vi.fn(() =>
+      result.commandService.unregister('test.lifecycle.command'),
+    );
 
     result.pluginLoader.register({
       id: 'test.lifecycle',
-      activate: () => {
+      activate: ({ commands }) => {
         activate();
+        commands.register({
+          id: 'test.lifecycle.command',
+          title: 'Lifecycle Test',
+          keywords: ['test'],
+          execute: () => 'active',
+        });
         return cleanup;
       },
     });
     result.pluginLoader.load('test.lifecycle');
     expect(result.pluginLoader.getStatus('test.lifecycle')).toBe('loaded');
+    expect(result.commandService.get('test.lifecycle.command')).toBeDefined();
 
     result.runtime.shutdown();
     expect(cleanup).toHaveBeenCalledTimes(1);
     expect(result.pluginLoader.getStatus('test.lifecycle')).toBe('registered');
+    expect(result.commandService.get('test.lifecycle.command')).toBeUndefined();
 
     result.runtime.restart();
     expect(activate).toHaveBeenCalledTimes(2);
     expect(result.pluginLoader.getStatus('test.lifecycle')).toBe('loaded');
+    expect(result.commandService.get('test.lifecycle.command')).toBeDefined();
   });
 
   it('normalizes bootstrap render failures and detaches global handlers', () => {

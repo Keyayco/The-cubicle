@@ -166,3 +166,37 @@ The requested architecture sequence identified Plugin Loader as complete, but in
 ### Next
 
 Implement the Command System using the existing `commands` registry category and Plugin Loader integration. Keep Demo Plugin and Workspace Manager out of scope.
+
+## 2026-10-09 - Implemented Core Command System
+
+### Scope and Design
+
+- Inspected the `main` branch: it had no command definition or dispatcher; its existing `commands` Registry category was reserved.
+- Inspected the historical Workspace/UI branch: its `WorkspaceCommand` contract used `id`, `title`, `keywords`, and `execute`; reused that metadata shape without importing its Workspace Manager or command-palette UI.
+- Added `CommandService` as the single registration, lookup, execution, and unregister API over the existing Registry `commands` category. No parallel command map was added.
+- Registered it as a stable Runtime core service and exposed it to plugins through `PluginContext.commands`.
+- Added `command:executed` and `command:failed` events; unknown IDs return `COMMAND_NOT_FOUND`, and handler failures are normalized through `ErrorManager`.
+- Plugin cleanup unregisters commands owned by that plugin. Runtime shutdown/restart behavior is covered by the existing Plugin Loader integration.
+
+### Files Changed
+
+- Added `src/core/commands/command-service.ts` and `tests/command-service.test.ts`
+- Updated core bootstrap, exports, Runtime service identifiers/wiring, and PluginContext
+- Updated `tests/core-engine.test.ts`, `tests/core-hardening.test.ts`, and `tests/plugin-loader.test.ts` for the new required service/context
+- Updated `README.md`, `RULES.md`, `STATE.md`, and `HANDOVER.md`
+
+### Verification
+
+- `npm test`: 34 passing across 4 files
+- `npm run build`: passing (TypeScript check and Vite production build)
+- `git diff --check`: passing
+- Verification used the matching preinstalled dependency tree; a clean install remains blocked by the package firewall rejecting pinned `tinypool@1.1.1`
+
+### Limitations
+
+- No command palette, keyboard shortcut handling, or built-in commands were added.
+- Commands are trusted in-process handlers; plugins must remove their registered commands in their synchronous cleanup callback.
+
+### Next
+
+Implement the Demo Plugin using PluginLoader and CommandService. Do not begin Workspace Manager yet.

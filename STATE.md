@@ -2,7 +2,7 @@
 
 ## Current Project Phase
 
-* Phase 1 core engine complete; Plugin Loader restored as the first post-Phase-1 subsystem
+* Phase 1 core engine, Plugin Loader, and Command System complete
 
 ## Current Implementation Status
 
@@ -46,19 +46,19 @@
 
 * Plugin Loader using the central plugin registry, core services, plugin lifecycle events, and Runtime initialize/shutdown/restart lifecycle
 
-* Vitest coverage for event bus, registry, storage, runtime lifecycle, bootstrap, and Phase 1 hardening paths
+* Command System using the central command registry, validated metadata, lookup, unregister, sync/async execution, events, and plugin integration
 
-## Components Currently Being Implemented
+* Vitest coverage for event bus, registry, storage, runtime lifecycle, bootstrap, Plugin Loader, Command System, and Phase 1 hardening paths
 
-* Plugin Loader restoration is complete; Command System work is the next planned task
+## Next Planned Work
+
+* Implement Demo Plugin using PluginLoader and CommandService; Workspace Manager follows later
 
 ## Components Not Yet Implemented
 
 * Workspace manager
 
 * Window system
-
-* Command System
 
 * Demo Plugin
 
@@ -75,6 +75,7 @@ src/
   main.ts
   core/
     bootstrap/
+    commands/
     config/
     errors/
     events/
@@ -88,6 +89,7 @@ tests/
   core-engine.test.ts
   core-hardening.test.ts
   plugin-loader.test.ts
+  command-service.test.ts
 ```
 
 ## Current Important Files
@@ -114,6 +116,8 @@ tests/
 
 * `tests/plugin-loader.test.ts`
 
+* `tests/command-service.test.ts`
+
 ## Current Public APIs
 
 The public core exports currently come from `src/core/index.ts` and include:
@@ -131,6 +135,8 @@ The public core exports currently come from `src/core/index.ts` and include:
 * Registry
 
 * Plugin Loader and plugin lifecycle types
+
+* CommandService, CommandDefinition, and command execution event types
 
 * Runtime and canonical service identifiers
 
@@ -156,6 +162,10 @@ The public core exports currently come from `src/core/index.ts` and include:
 
   * Runtime shutdown cleanup and restart reactivation for registered plugins
 
+  * Command registration, lookup, validation, duplicate rejection, unregister, sync/async execution, unknown IDs, and handler failures
+
+  * Plugin registration and cleanup of plugin-owned commands through `PluginContext.commands`
+
   * Bootstrap success path, root workspace render, and live status updates during lifecycle changes
 
   * Runtime failure normalization, config override behavior, global error handlers, logger filtering, and local-storage namespacing
@@ -164,7 +174,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Verified on 2026-10-09 using the already-installed dependency tree; a clean `npm ci` was blocked by the package firewall for `tinypool@1.1.1`
 
-* `npm test`: passing (26 tests across 3 files)
+* `npm test`: passing (34 tests across 4 files)
 
 * `npm run build`: passing
 
@@ -174,7 +184,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Plugin activation and cleanup are synchronous to match the current Runtime lifecycle contract
 
-* No command execution system despite reserved registry support for `commands`
+* The Command System has no palette UI, shortcut handling, or built-in commands
 
 * No persisted lifecycle recovery or app orchestration
 
@@ -198,7 +208,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Investigate the reported `npm audit` high severity vulnerability when dependency maintenance is in scope
 
-* Implement the Command System; do not begin Demo Plugin or Workspace Manager yet
+* Implement the Demo Plugin; do not begin Workspace Manager yet
 
 ## Current Assumptions
 
@@ -212,7 +222,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * No confirmed active implementation blocker inside the codebase
 
-* The Command System is the next planned subsystem; the Demo Plugin and Workspace Manager remain out of scope for that step
+* Demo Plugin is the next planned subsystem; Workspace Manager remains out of scope until after it
 
 ## Most Recently Changed
 
@@ -224,7 +234,9 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Inspection found Plugin Loader absent from `main`, all visible branches, and all four pull requests despite the requested phase sequence; it was restored using the existing plugin registry and Runtime/EventBus contracts
 
+* Command System uses historical command metadata (`id`, `title`, `keywords`) found on the Workspace/UI branch, but adds no Workspace/UI code; dispatch and registration live in the core service and shared Registry
+
 ## What Should Be Worked On Next
 
-* Implement the Command System next, using the existing `commands` registry category and the now-available Plugin Loader integration point
+* Implement Demo Plugin next through PluginLoader and CommandService; do not start Workspace Manager yet
 

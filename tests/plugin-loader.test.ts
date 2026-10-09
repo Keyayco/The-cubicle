@@ -1,5 +1,6 @@
 import {
   ConfigurationService,
+  CommandService,
   CubeError,
   ErrorManager,
   EventBus,
@@ -18,15 +19,30 @@ const createPluginLoader = () => {
   const logger = new Logger({ sink: () => undefined });
   const errorManager = new ErrorManager(logger, eventBus);
   const storage = new StorageService(new MemoryStorageAdapter());
+  const commandService = new CommandService(
+    registry,
+    eventBus,
+    errorManager,
+    logger,
+  );
   const loader = new PluginLoader(
     registry,
-    { config, eventBus, logger, registry, storage },
+    { commands: commandService, config, eventBus, logger, registry, storage },
     errorManager,
     eventBus,
     logger,
   );
 
-  return { config, errorManager, eventBus, loader, logger, registry, storage };
+  return {
+    commandService,
+    config,
+    errorManager,
+    eventBus,
+    loader,
+    logger,
+    registry,
+    storage,
+  };
 };
 
 describe('PluginLoader', () => {
