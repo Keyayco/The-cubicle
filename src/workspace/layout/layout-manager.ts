@@ -1,4 +1,4 @@
-import type { EventBus } from '../../core';
+import type { EventBus } from '../../core/events/event-bus';
 import type { WindowBounds, WindowItem, WindowLayout } from '../types';
 
 const cloneBounds = (bounds: WindowBounds): WindowBounds => ({ ...bounds });
