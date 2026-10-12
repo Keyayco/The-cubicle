@@ -2,7 +2,7 @@
 
 ## Current Project Phase
 
-* Phase 1 core engine, Plugin Loader, and Command System complete
+* Phase 1 core engine, Plugin Loader, Command System, and optional Demo Plugin complete
 
 ## Current Implementation Status
 
@@ -48,19 +48,19 @@
 
 * Command System using the central command registry, validated metadata, lookup, unregister, sync/async execution, events, and plugin integration
 
-* Vitest coverage for event bus, registry, storage, runtime lifecycle, bootstrap, Plugin Loader, Command System, and Phase 1 hardening paths
+* Optional Demo Plugin outside core, demonstrating explicit registration, a greeting command, cleanup, and Runtime restart behavior
+
+* Vitest coverage for event bus, registry, storage, runtime lifecycle, bootstrap, Plugin Loader, Command System, Demo Plugin, and Phase 1 hardening paths
 
 ## Next Planned Work
 
-* Implement Demo Plugin using PluginLoader and CommandService; Workspace Manager follows later
+* Workspace Manager is the next planned subsystem; do not skip ahead to window/UI details not required by its architecture
 
 ## Components Not Yet Implemented
 
 * Workspace manager
 
 * Window system
-
-* Demo Plugin
 
 * Feature modules and apps
 
@@ -73,6 +73,8 @@
 ```text
 src/
   main.ts
+  plugins/
+    demo-plugin.ts
   core/
     bootstrap/
     commands/
@@ -90,6 +92,7 @@ tests/
   core-hardening.test.ts
   plugin-loader.test.ts
   command-service.test.ts
+  demo-plugin.test.ts
 ```
 
 ## Current Important Files
@@ -118,6 +121,10 @@ tests/
 
 * `tests/command-service.test.ts`
 
+* `src/plugins/demo-plugin.ts`
+
+* `tests/demo-plugin.test.ts`
+
 ## Current Public APIs
 
 The public core exports currently come from `src/core/index.ts` and include:
@@ -137,6 +144,8 @@ The public core exports currently come from `src/core/index.ts` and include:
 * Plugin Loader and plugin lifecycle types
 
 * CommandService, CommandDefinition, and command execution event types
+
+* Optional `demoPlugin` definition and its stable ID constants from `src/plugins/demo-plugin.ts` (outside the core barrel)
 
 * Runtime and canonical service identifiers
 
@@ -166,15 +175,17 @@ The public core exports currently come from `src/core/index.ts` and include:
 
   * Plugin registration and cleanup of plugin-owned commands through `PluginContext.commands`
 
+  * Optional Demo Plugin explicit registration, greeting command behavior, cleanup, and Runtime restart
+
   * Bootstrap success path, root workspace render, and live status updates during lifecycle changes
 
   * Runtime failure normalization, config override behavior, global error handlers, logger filtering, and local-storage namespacing
 
 ## Current Build Status
 
-* Verified on 2026-10-09 using the already-installed dependency tree; a clean `npm ci` was blocked by the package firewall for `tinypool@1.1.1`
+* Verified on 2026-10-12 using the matching preinstalled dependency tree; a clean `npm ci` was blocked by the package firewall for `tinypool@1.1.1`
 
-* `npm test`: passing (34 tests across 4 files)
+* `npm test`: passing (35 tests across 5 files)
 
 * `npm run build`: passing
 
@@ -185,6 +196,8 @@ The public core exports currently come from `src/core/index.ts` and include:
 * Plugin activation and cleanup are synchronous to match the current Runtime lifecycle contract
 
 * The Command System has no palette UI, shortcut handling, or built-in commands
+
+* The Demo Plugin is opt-in and provides only one greeting command; no default bootstrap behavior is changed
 
 * No persisted lifecycle recovery or app orchestration
 
@@ -208,7 +221,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Investigate the reported `npm audit` high severity vulnerability when dependency maintenance is in scope
 
-* Implement the Demo Plugin; do not begin Workspace Manager yet
+* Begin Workspace Manager planning; keep implementation scoped to that subsystem
 
 ## Current Assumptions
 
@@ -222,7 +235,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * No confirmed active implementation blocker inside the codebase
 
-* Demo Plugin is the next planned subsystem; Workspace Manager remains out of scope until after it
+* Workspace Manager is next in the subsystem progression; feature/UI boundaries still need to follow `RULES.md`
 
 ## Most Recently Changed
 
@@ -236,7 +249,9 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Command System uses historical command metadata (`id`, `title`, `keywords`) found on the Workspace/UI branch, but adds no Workspace/UI code; dispatch and registration live in the core service and shared Registry
 
+* Demo Plugin is an opt-in module outside `src/core`; it demonstrates command registration and plugin cleanup without changing default bootstrap
+
 ## What Should Be Worked On Next
 
-* Implement Demo Plugin next through PluginLoader and CommandService; do not start Workspace Manager yet
+* Plan/implement Workspace Manager next, following `RULES.md`; do not fold command palette or unrelated features into it
 

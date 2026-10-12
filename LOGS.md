@@ -200,3 +200,35 @@ Implement the Command System using the existing `commands` registry category and
 ### Next
 
 Implement the Demo Plugin using PluginLoader and CommandService. Do not begin Workspace Manager yet.
+
+## 2026-10-12 - Added Optional Demo Plugin
+
+### Scope and Design
+
+- Checked the current `main`, visible branches, and pull requests; no Demo Plugin implementation was present.
+- Added `demoPlugin` in `src/plugins/demo-plugin.ts`, outside `src/core`.
+- The host must explicitly register and load the plugin; default bootstrap remains unchanged and starts with no plugins or commands.
+- The plugin registers one `demo.greeter.sayHello` command, returns a greeting, and unregisters the command during cleanup.
+- No UI, palette, shortcuts, workspace behavior, or other application features were added.
+
+### Files Changed
+
+- Added `src/plugins/demo-plugin.ts` and `tests/demo-plugin.test.ts`
+- Updated `README.md`, `RULES.md`, `STATE.md`, and `HANDOVER.md`
+
+### Verification
+
+- Baseline before changes: 34 tests passing; production build passing
+- After changes: `npm test` passed (35 tests across 5 files)
+- `npm run build`: passing (TypeScript check and Vite production build)
+- `git diff --check`: passing
+- Verification used the matching preinstalled dependency tree; a clean install remains blocked by the package firewall rejecting pinned `tinypool@1.1.1`
+
+### Limitations
+
+- The Demo Plugin is opt-in and not loaded by default.
+- Its only command is a sample greeting; there is no UI to discover or invoke it.
+
+### Next
+
+Workspace Manager is next in the planned sequence. Keep its scope aligned with `RULES.md`.

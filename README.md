@@ -1,6 +1,6 @@
-# Cube OS - Core Engine, Plugin Loader, and Command System
+# Cube OS - Core Engine, Plugin Loader, Command System, and Demo Plugin
 
-This repository contains the Phase 1 browser core engine, the Plugin Loader, and the Command System. The implementation remains infrastructure-first and does not include application modules, dashboards, or business-specific features.
+This repository contains the Phase 1 browser core engine, Plugin Loader, Command System, and an optional sample Demo Plugin. The core remains infrastructure-first and does not include a workspace manager, dashboards, or business-specific features.
 
 ## Scope
 
@@ -19,17 +19,20 @@ The current implementation does not include:
 
 - Workspace manager
 - Window system
-- Demo Plugin
 - Feature modules and apps
 - Authentication
 - Cloud sync
 
 The Plugin Loader activates trusted plugin definitions registered by the host. It does not dynamically import arbitrary module paths or sandbox plugin code.
 
+The sample Demo Plugin is defined in `src/plugins/demo-plugin.ts`. It registers one greeting command through `PluginContext.commands`; the host must register and load it explicitly. The default bootstrap does not import or auto-load it.
+
 ## Architecture
 
 ```text
 src/
+  plugins/
+    demo-plugin.ts
   core/
     bootstrap/
     commands/

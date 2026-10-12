@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements the Phase 1 Cube OS core engine, the Plugin Loader, and the Command System. Its job is to provide foundational runtime services, plugin lifecycle, and command dispatch without introducing application-specific behavior.
+This repository implements the Phase 1 Cube OS core engine, Plugin Loader, Command System, and an optional sample Demo Plugin kept outside core. Its job is to provide foundational runtime services, plugin lifecycle, and command dispatch without adding workspace or business-specific behavior.
 
 The current codebase intentionally focuses on infrastructure:
 
@@ -18,7 +18,7 @@ The current codebase intentionally focuses on infrastructure:
 - Trusted plugin definition registration and lifecycle
 - Command registration, lookup, and execution
 
-It intentionally does not implement a Demo Plugin, command palette or keyboard shortcut UI, application modules, a workspace manager, a window system, authentication, or cloud sync.
+It intentionally does not implement command palette or keyboard shortcut UI, other application modules, a workspace manager, a window system, authentication, or cloud sync.
 
 ## Architectural Philosophy
 
@@ -51,6 +51,8 @@ Core subsystems live under `src/core`:
 - `runtime`: lifecycle state machine and service exposure
 - `storage`: adapter contract and concrete storage implementations
 
+The optional sample extension is outside core at `src/plugins/demo-plugin.ts` and is registered only by an explicit host.
+
 ## Directory Structure
 
 ```text
@@ -67,6 +69,8 @@ Core subsystems live under `src/core`:
   src/
     main.ts
     styles.css
+    plugins/
+      demo-plugin.ts
     core/
       bootstrap/
       commands/
@@ -84,6 +88,7 @@ Core subsystems live under `src/core`:
     core-hardening.test.ts
     plugin-loader.test.ts
     command-service.test.ts
+    demo-plugin.test.ts
 ```
 
 ## Module Responsibilities
@@ -110,6 +115,13 @@ Core subsystems live under `src/core`:
 - Provide command lookup, listing, unregister, and sync/async execution.
 - Emit `command:executed` and `command:failed`; normalize handler failures through `ErrorManager`.
 - Remain UI-agnostic: no palette, shortcuts, or workspace-specific commands.
+
+### `src/plugins/demo-plugin.ts`
+
+- Provide a small example `PluginDefinition` outside the core layer.
+- Register one greeting command through `PluginContext.commands`.
+- Remove that command in the plugin cleanup callback.
+- Remain opt-in: default bootstrap does not import, register, or activate it.
 
 ### `src/core/errors`
 
@@ -256,6 +268,8 @@ The current runtime data flow is:
 6. Bootstrap resolves the root container and renders the root workspace view.
 7. The DOM reflects the current runtime status and workspace text from config.
 
+The optional demo plugin is not part of default bootstrap. A host explicitly registers its definition with `PluginLoader` and loads it when wanted.
+
 During failures:
 
 1. Unknown errors are normalized into `CubeError`.
@@ -375,6 +389,7 @@ Do not couple higher-level modules directly to a specific storage backend.
   - Runtime lifecycle transition behavior across initialize, shutdown, and restart
   - Bootstrap success path, runtime registration, DOM rendering, and live runtime-status sync
   - Plugin registration, lookup, activation, cleanup, error handling, and Runtime lifecycle integration
+  - Optional Demo Plugin registration, greeting command execution, cleanup, and Runtime restart behavior
 
 Additional tests should focus on behavior contracts and lifecycle invariants rather than implementation trivia.
 
@@ -411,6 +426,7 @@ Additional tests should focus on behavior contracts and lifecycle invariants rat
 - Plugin failures are normalized, sent through `ErrorManager`, and emitted as `plugin:failed`.
 - Keep the Plugin Loader separate from plugin feature modules; no Demo Plugin or application-specific behavior belongs in core.
 - Plugin cleanup should unregister commands owned by that plugin through `CommandService.unregister()`.
+- The sample Demo Plugin lives outside `src/core` and is not automatically registered or activated.
 
 Do not add plugin-specific feature behavior into the core.
 
@@ -428,6 +444,7 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - Unexpected errors remain normalized and observable.
 - The event bus remains lightweight and duplicate-listener safe.
 - Phase 1 remains free of application modules and business-specific logic.
+- Optional feature plugins remain outside `src/core`; the Demo Plugin is a sample definition, not a core service.
 - Plugin lifecycle uses the shared registry and Runtime lifecycle; it does not create a parallel plugin registry.
 
 ## Must-Not-Break Rules
@@ -447,4 +464,4 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - `initialize()` avoids duplicate service registration by checking the registry before registering.
 - `LocalStorageAdapter` is only selected when configured and when `window` exists; otherwise bootstrap falls back to memory storage.
 - Global browser error handlers are attached only at runtime initialization, not at module import time.
-- Plugin definitions are registered and activated explicitly; no plugins are bundled or auto-discovered by default.
+- Plugin definitions are registered and activated explicitly; the sample Demo Plugin is not bundled into the default app or auto-discovered.

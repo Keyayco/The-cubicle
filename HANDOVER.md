@@ -2,7 +2,7 @@
 
 ## Project Context
 
-This repository is `cube-os-core-engine`, a TypeScript frontend application built with Vite and tested with Vitest. It implements the Phase 1 browser core engine and the first post-Phase-1 subsystem, a minimal Plugin Loader; higher-level OS features remain separate.
+This repository is `cube-os-core-engine`, a TypeScript frontend application built with Vite and tested with Vitest. It implements the Phase 1 browser core engine, Plugin Loader, Command System, and an opt-in sample Demo Plugin; higher-level OS features remain separate.
 
 The current codebase is intentionally infrastructure-first. It proves that the runtime can be bootstrapped, core services can be registered, and a minimal workspace shell can be rendered.
 
@@ -11,7 +11,7 @@ The current codebase is intentionally infrastructure-first. It proves that the r
 - Core engine services are implemented under `src/core`
 - The browser entrypoint is `src/main.ts`
 - Bootstrap orchestration lives in `src/core/bootstrap/bootstrap.ts`
-- Current tests cover event bus, registry, storage, bootstrap success, Phase 1 hardening, Plugin Loader, and Command System paths
+- Current tests cover event bus, registry, storage, bootstrap success, Phase 1 hardening, Plugin Loader, Command System, and Demo Plugin paths
 - The current test/build verification used the matching preinstalled dependency tree; `npm ci` is blocked by the package firewall for pinned `tinypool@1.1.1`
 - Runtime lifecycle transitions now emit a generic `runtime:status-changed` event
 - The root workspace shell now updates its displayed runtime status when lifecycle changes occur
@@ -19,7 +19,8 @@ The current codebase is intentionally infrastructure-first. It proves that the r
 - The root handover documentation has been added and must be kept current
 - Phase 1 hardening coverage is active in `tests/core-hardening.test.ts`
 - The Plugin Loader is implemented in `src/core/plugins/plugin-loader.ts` and is part of the Runtime service lifecycle
-- The Command System is implemented in `src/core/commands/command-service.ts`; the next planned subsystem is Demo Plugin, not Workspace Manager
+- The Command System is implemented in `src/core/commands/command-service.ts`; the optional Demo Plugin is in `src/plugins/demo-plugin.ts`
+- The next planned subsystem is Workspace Manager; no Workspace Manager or UI work was included with the Demo Plugin
 
 ## Read First
 
@@ -39,13 +40,14 @@ Before changing code, inspect these files and directories in this order:
 12. `src/core/registry/`
 13. `src/core/plugins/`
 14. `src/core/commands/`
-15. `src/core/storage/`
-16. `src/core/errors/`
-17. `tests/`
+15. `src/plugins/`
+16. `src/core/storage/`
+17. `src/core/errors/`
+18. `tests/`
 
 ## Current Objective
 
-The Command System is complete. The next planned subsystem is Demo Plugin; keep Workspace Manager out of that work.
+The Demo Plugin is complete. Workspace Manager is next in the planned progression; keep unrelated UI or command-palette work out of scope.
 
 ## Recommended Investigation Order
 
@@ -77,19 +79,20 @@ The Command System is complete. The next planned subsystem is Demo Plugin; keep 
 - Plugin activation and cleanup are synchronous; arbitrary module imports and sandboxing are not implemented.
 - `CommandService` stores definitions in the shared `commands` registry category and dispatches commands with `command:executed` / `command:failed` events.
 - Plugin code gets the command service through `PluginContext.commands` and should unregister plugin-owned commands in its cleanup callback.
-- No command palette, keyboard shortcuts, Demo Plugin, or Workspace Manager is implemented in this step.
+- No command palette, keyboard shortcuts, or Workspace Manager is implemented.
+- The sample Demo Plugin is opt-in and is not imported or activated by default bootstrap.
 - `StorageService` is the stable abstraction; the rest of the system should not depend directly on `window.localStorage`.
 - Current UI rendering is intentionally minimal and exists only to validate that the core engine booted successfully, while now reflecting runtime status changes live.
 - `src/core/index.ts` is the public export surface for reusable core APIs.
 
 ## Do Not Assume
 
-- Plugin loading exists, but do not assume dynamic imports, sandboxing, or a bundled plugin exists.
+- Plugin loading uses trusted host-provided definitions; there is no dynamic import or sandboxing. The optional Demo Plugin is not auto-registered or loaded by default.
 - The Command System is UI-agnostic; do not assume a palette or keyboard shortcut layer exists.
 - Do not assume runtime failure paths or config override edge cases have comprehensive test coverage.
 - Do not assume build and test status if you have not run them in the current state.
 - Do not assume dependencies are already installed in a clean environment; run `npm ci` first.
-- The subsystem sequence is Core Engine → Plugin Loader → Command System → Demo Plugin → Workspace Manager; implement the Demo Plugin next and do not skip ahead to Workspace Manager.
+- The subsystem sequence is Core Engine → Plugin Loader → Command System → Demo Plugin → Workspace Manager; proceed to Workspace Manager next without adding unplanned UI or unrelated features.
 - Do not assume any new public API is safe to expose without updating `src/core/index.ts`, tests, and documentation together.
 
 ## Next Steps
@@ -98,8 +101,8 @@ Unless a user gives a more specific task, the clearest next actions are:
 
 1. Verify `npm test`
 2. Verify `npm run build`
-3. Implement the Demo Plugin using the Plugin Loader and Command Service
-4. Keep Workspace Manager and UI layers out of the Demo Plugin work unless explicitly planned
+3. Inspect the workspace/window requirements before implementing Workspace Manager
+4. Keep the existing Plugin Loader and Command System as the extension points
 5. Update `STATE.md`, `HANDOVER.md`, and `LOGS.md` after the next implementation
 
 ## Documentation Workflow
