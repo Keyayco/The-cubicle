@@ -1,6 +1,5 @@
 import {
   bootstrapApplication,
-  CubeError,
   CommandService,
   ConfigurationService,
   CORE_SERVICE_IDS,
@@ -13,6 +12,7 @@ import {
   Runtime,
   type RuntimeStatusChange,
   StorageService,
+  WorkspaceManager,
 } from '../src/core';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -90,6 +90,7 @@ describe('Runtime', () => {
     });
     const errorManager = new ErrorManager(logger, eventBus);
     const storage = new StorageService(new MemoryStorageAdapter());
+    const workspaceManager = new WorkspaceManager(eventBus, storage);
     const commandService = new CommandService(
       registry,
       eventBus,
@@ -112,6 +113,7 @@ describe('Runtime', () => {
       pluginLoader,
       registry,
       storage,
+      workspaceManager,
     });
     const observedTransitions: Array<[string, string]> = [];
 
@@ -143,10 +145,10 @@ describe('Runtime', () => {
 });
 
 describe('bootstrapApplication', () => {
-  it('boots the runtime, registers core services, and renders the root workspace', () => {
+  it('boots the runtime, registers core services, and renders the root workspace', async () => {
     document.body.innerHTML = '<div id="app"></div>';
 
-    const result = bootstrapApplication({
+    const result = await bootstrapApplication({
       runtimeOverrides: {
         storage: {
           driver: 'memory',
@@ -163,6 +165,15 @@ describe('bootstrapApplication', () => {
     expect(
       result.registry.has('services', CORE_SERVICE_IDS.pluginLoader),
     ).toBe(true);
+    expect(
+      result.registry.has('services', CORE_SERVICE_IDS.workspaceManager),
+    ).toBe(true);
+    expect(result.workspaceManager.isHydrated()).toBe(true);
+    expect(result.workspaceManager.listItems().map(({ id }) => id)).toEqual([
+      'overview',
+      'runtime',
+      'storage',
+    ]);
     expect(document.querySelector('.cube-root-workspace')).not.toBeNull();
     expect(document.body.textContent).toContain('Core Engine');
     expect(document.querySelector('.cube-runtime-status')?.textContent).toContain(
@@ -170,10 +181,10 @@ describe('bootstrapApplication', () => {
     );
   });
 
-  it('keeps the rendered workspace status synchronized with runtime lifecycle changes', () => {
+  it('keeps the rendered workspace status synchronized with runtime lifecycle changes', async () => {
     document.body.innerHTML = '<div id="app"></div>';
 
-    const result = bootstrapApplication({
+    const result = await bootstrapApplication({
       runtimeOverrides: {
         storage: {
           driver: 'memory',
@@ -198,9 +209,9 @@ describe('bootstrapApplication', () => {
     expect(status?.textContent).toContain('running');
   });
 
-  it('unloads plugins during shutdown and reloads them on restart', () => {
+  it('unloads plugins during shutdown and reloads them on restart', async () => {
     document.body.innerHTML = '<div id="app"></div>';
-    const result = bootstrapApplication({
+    const result = await bootstrapApplication({
       runtimeOverrides: {
         storage: {
           driver: 'memory',
@@ -240,33 +251,28 @@ describe('bootstrapApplication', () => {
     expect(result.commandService.get('test.lifecycle.command')).toBeDefined();
   });
 
-  it('normalizes bootstrap render failures and detaches global handlers', () => {
+  it('normalizes bootstrap render failures and detaches global handlers', async () => {
     document.body.innerHTML = '';
 
     const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
     const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
 
-    let thrown: unknown;
-    try {
-      bootstrapApplication({
-        runtimeOverrides: {
-          logging: {
-            enabled: false,
-          },
-          storage: {
-            driver: 'memory',
-          },
+    const bootstrap = bootstrapApplication({
+      runtimeOverrides: {
+        logging: {
+          enabled: false,
         },
-      });
-    } catch (error) {
-      thrown = error;
-    }
+        storage: {
+          driver: 'memory',
+        },
+      },
+    });
 
-    expect(thrown).toBeInstanceOf(CubeError);
-    expect((thrown as CubeError).message).toBe(
-      'Bootstrap container could not be resolved.',
-    );
-    expect((thrown as CubeError).code).toBe('RUNTIME_ERROR');
+    await expect(bootstrap).rejects.toMatchObject({
+      name: 'CubeError',
+      message: 'Bootstrap container could not be resolved.',
+      code: 'RUNTIME_ERROR',
+    });
 
     const addedEventTypes = addEventListenerSpy.mock.calls.map(([type]) => type);
     const removedEventTypes = removeEventListenerSpy.mock.calls.map(

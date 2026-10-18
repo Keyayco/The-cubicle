@@ -6,6 +6,7 @@ import type { LoggerContract } from '../logger/types';
 import type { Registry } from '../registry/registry';
 import type { PluginLoader } from '../plugins/plugin-loader';
 import type { StorageService } from '../storage/storage-service';
+import type { WorkspaceManager } from '../workspace/workspace-manager';
 import { CORE_SERVICE_IDS } from './service-identifiers';
 
 export type RuntimeStatus =
@@ -30,6 +31,7 @@ export interface RuntimeServices {
   pluginLoader: PluginLoader;
   registry: Registry;
   storage: StorageService;
+  workspaceManager: WorkspaceManager;
 }
 
 /**
@@ -140,6 +142,7 @@ export class Runtime {
       [CORE_SERVICE_IDS.registry]: this.services.registry,
       [CORE_SERVICE_IDS.runtime]: this,
       [CORE_SERVICE_IDS.storage]: this.services.storage,
+      [CORE_SERVICE_IDS.workspaceManager]: this.services.workspaceManager,
     } as const;
 
     for (const [identifier, service] of Object.entries(services)) {

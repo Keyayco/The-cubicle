@@ -12,6 +12,7 @@ import {
   Registry,
   Runtime,
   StorageService,
+  WorkspaceManager,
 } from '../src/core';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -21,6 +22,7 @@ describe('Runtime failure path', () => {
     const eventBus = new EventBus();
     const logger = new Logger({ sink: () => undefined });
     const storage = new StorageService(new MemoryStorageAdapter());
+    const workspaceManager = new WorkspaceManager(eventBus, storage);
     const failingErrorManager = {
       capture: (error: unknown) => normalizeError(error, 'RUNTIME_ERROR'),
       attachGlobalHandlers: () => {
@@ -52,6 +54,7 @@ describe('Runtime failure path', () => {
       pluginLoader,
       registry,
       storage,
+      workspaceManager,
     });
 
     const failedSpy = vi.fn();

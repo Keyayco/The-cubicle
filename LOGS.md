@@ -232,3 +232,40 @@ Implement the Demo Plugin using PluginLoader and CommandService. Do not begin Wo
 ### Next
 
 Workspace Manager is next in the planned sequence. Keep its scope aligned with `RULES.md`.
+
+## 2026-10-18 - Implemented Persisted Workspace Manager
+
+### Scope and Design
+
+- Inspected the current architecture and historical workspace-item precedent; the requested model was persisted workspace items, not named workspace sessions.
+- Added `WorkspaceManager` for `system`/`plugin` item metadata, active-item selection, storage hydration, seed backfill, validation, serialized persistence, and state events.
+- Reused `StorageService`, `EventBus`, and the existing Registry `services` category with `CORE_SERVICE_IDS.workspaceManager`; no parallel registry was introduced.
+- Bootstrap now awaits workspace hydration before Runtime initialization. `src/main.ts` awaits the asynchronous bootstrap.
+- Default seed items are `overview`, `runtime`, and `storage`; existing saved items and a valid active selection are retained.
+- No windows, sessions, layout, UI, tabs, dock, sidebar, command palette, Demo Plugin changes, or automatic plugin lifecycle wiring were added.
+
+### Files Changed
+
+- Added `src/core/workspace/workspace-manager.ts` and `tests/workspace-manager.test.ts`
+- Updated `src/core/bootstrap/bootstrap.ts`, `src/core/index.ts`, `src/core/runtime/runtime.ts`, and `src/core/runtime/service-identifiers.ts`
+- Updated `src/main.ts`, `tests/core-engine.test.ts`, `tests/core-hardening.test.ts`, and `tests/demo-plugin.test.ts` for async bootstrap and Runtime service wiring
+- Updated `README.md`, `RULES.md`, `STATE.md`, `HANDOVER.md`, and this log
+
+### Verification
+
+- Baseline before implementation: 35 tests across 5 files; production build passed
+- After implementation: `npm test` passed (41 tests across 6 files)
+- `npm run build`: passed (TypeScript check and Vite production build)
+- `git diff --check`: passed
+- Verification used the matching preinstalled dependency tree; clean installation remains blocked in this environment by the package firewall rejecting pinned `tinypool@1.1.1`
+
+### Limitations
+
+- The manager stores metadata only; the root shell does not render workspace items.
+- Plugin-kind items are supported, but Plugin Loader does not automatically register or remove workspace items.
+- Invalid persisted state fails initialization with `WORKSPACE_STATE_INVALID`; automatic recovery and schema migration are not implemented.
+- No subsystem after Workspace Manager is specified in the current project sequence.
+
+### Next
+
+Confirm the next project objective before implementing another subsystem.

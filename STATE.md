@@ -2,7 +2,7 @@
 
 ## Current Project Phase
 
-* Phase 1 core engine, Plugin Loader, Command System, and optional Demo Plugin complete
+* Phase 1 core engine, Plugin Loader, Command System, optional Demo Plugin, and Workspace Manager complete
 
 ## Current Implementation Status
 
@@ -13,6 +13,8 @@
 * The composition root is `src/core/bootstrap/bootstrap.ts`.
 
 * The project currently validates successful boot by rendering a minimal root workspace into `#app`.
+
+* Bootstrap is asynchronous so the Workspace Manager hydrates persistent item state before Runtime initialization.
 
 ## Completed Components
 
@@ -50,15 +52,15 @@
 
 * Optional Demo Plugin outside core, demonstrating explicit registration, a greeting command, cleanup, and Runtime restart behavior
 
-* Vitest coverage for event bus, registry, storage, runtime lifecycle, bootstrap, Plugin Loader, Command System, Demo Plugin, and Phase 1 hardening paths
+* Workspace Manager for persisted `system`/`plugin` item metadata, active-item selection, default-seed backfill, state events, and serialized mutations
+
+* Vitest coverage for event bus, registry, storage, runtime lifecycle, bootstrap, Plugin Loader, Command System, Demo Plugin, Workspace Manager, and Phase 1 hardening paths
 
 ## Next Planned Work
 
-* Workspace Manager is the next planned subsystem; do not skip ahead to window/UI details not required by its architecture
+* No subsystem after Workspace Manager is defined in the current project plan; select the next scope explicitly before implementation
 
 ## Components Not Yet Implemented
-
-* Workspace manager
 
 * Window system
 
@@ -86,6 +88,7 @@ src/
     registry/
     runtime/
     storage/
+    workspace/
     index.ts
 tests/
   core-engine.test.ts
@@ -93,6 +96,7 @@ tests/
   plugin-loader.test.ts
   command-service.test.ts
   demo-plugin.test.ts
+  workspace-manager.test.ts
 ```
 
 ## Current Important Files
@@ -113,6 +117,8 @@ tests/
 
 * `src/core/bootstrap/root-workspace.ts`
 
+* `src/core/workspace/workspace-manager.ts`
+
 * `tests/core-engine.test.ts`
 
 * `tests/core-hardening.test.ts`
@@ -124,6 +130,8 @@ tests/
 * `src/plugins/demo-plugin.ts`
 
 * `tests/demo-plugin.test.ts`
+
+* `tests/workspace-manager.test.ts`
 
 ## Current Public APIs
 
@@ -151,9 +159,13 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Storage contract, service, and adapters
 
+* Workspace Manager, item/state types, and storage-key constant
+
 ## Current Tests
 
 * `tests/core-engine.test.ts`
+
+* `tests/workspace-manager.test.ts`
 
 * Test environment: `jsdom`
 
@@ -179,13 +191,15 @@ The public core exports currently come from `src/core/index.ts` and include:
 
   * Bootstrap success path, root workspace render, and live status updates during lifecycle changes
 
+  * Workspace item hydration, seed backfill, persistence, registration, activation, removal, events, validation, state isolation, and concurrent writes
+
   * Runtime failure normalization, config override behavior, global error handlers, logger filtering, and local-storage namespacing
 
 ## Current Build Status
 
-* Verified on 2026-10-12 using the matching preinstalled dependency tree; a clean `npm ci` was blocked by the package firewall for `tinypool@1.1.1`
+* Verified on 2026-10-18 using the matching preinstalled dependency tree; a clean `npm ci` remains blocked by the package firewall for `tinypool@1.1.1`
 
-* `npm test`: passing (35 tests across 5 files)
+* `npm test`: passing (41 tests across 6 files)
 
 * `npm run build`: passing
 
@@ -198,6 +212,10 @@ The public core exports currently come from `src/core/index.ts` and include:
 * The Command System has no palette UI, shortcut handling, or built-in commands
 
 * The Demo Plugin is opt-in and provides only one greeting command; no default bootstrap behavior is changed
+
+* Workspace items are metadata only; the shell does not render them, and no windows, sessions, layout, or Workspace UI are implemented
+
+* Plugin-kind items can be registered, but Plugin Loader does not automatically add/remove workspace items during plugin lifecycle
 
 * No persisted lifecycle recovery or app orchestration
 
@@ -221,7 +239,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Investigate the reported `npm audit` high severity vulnerability when dependency maintenance is in scope
 
-* Begin Workspace Manager planning; keep implementation scoped to that subsystem
+* Choose the next subsystem after Workspace Manager; the current sequence defines no further work
 
 ## Current Assumptions
 
@@ -229,13 +247,13 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * `src/core/index.ts` remains the intended public barrel.
 
-* The current root workspace remains a boot-validation shell rather than a real workspace manager, even though it now reflects runtime lifecycle changes live.
+* The current root workspace remains a boot-validation shell; it reflects runtime lifecycle changes but does not render Workspace Manager items.
 
 ## Current Blockers
 
 * No confirmed active implementation blocker inside the codebase
 
-* Workspace Manager is next in the subsystem progression; feature/UI boundaries still need to follow `RULES.md`
+* Future scope should remain aligned with `RULES.md`
 
 ## Most Recently Changed
 
@@ -251,7 +269,9 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Demo Plugin is an opt-in module outside `src/core`; it demonstrates command registration and plugin cleanup without changing default bootstrap
 
+* Workspace Manager hydrates and persists item metadata through `StorageService`, exposes itself through the existing Runtime `services` category, and emits state changes through the shared `EventBus`; it adds no parallel registry or UI
+
 ## What Should Be Worked On Next
 
-* Plan/implement Workspace Manager next, following `RULES.md`; do not fold command palette or unrelated features into it
+* No next subsystem is specified after Workspace Manager; agree on the next objective before further implementation
 

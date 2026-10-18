@@ -10,7 +10,7 @@ describe('demoPlugin', () => {
   it('is opt-in, registers a greeting command, and cleans up across lifecycle changes', async () => {
     document.body.innerHTML = '<div id="app"></div>';
 
-    const app = bootstrapApplication({
+    const app = await bootstrapApplication({
       runtimeOverrides: {
         storage: {
           driver: 'memory',
