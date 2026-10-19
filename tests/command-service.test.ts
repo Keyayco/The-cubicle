@@ -108,6 +108,32 @@ describe('CommandService', () => {
     );
   });
 
+  it('emits start and outcome events with a matching operation ID and source', async () => {
+    const { commandService, eventBus } = createCommandService();
+    const started = vi.fn();
+    const executed = vi.fn();
+    eventBus.on('command:started', started);
+    eventBus.on('command:executed', executed);
+    commandService.register({
+      id: 'demo.tracked',
+      title: 'Tracked',
+      keywords: [],
+      execute: () => 'ok',
+    });
+
+    await commandService.execute('demo.tracked', undefined, {
+      source: 'terminal',
+    });
+
+    expect(started).toHaveBeenCalledOnce();
+    expect(executed).toHaveBeenCalledOnce();
+    expect(started.mock.calls[0]?.[0].payload.operationId).toBe(
+      executed.mock.calls[0]?.[0].payload.operationId,
+    );
+    expect(started.mock.calls[0]?.[0].metadata?.source).toBe('terminal');
+    expect(executed.mock.calls[0]?.[0].metadata?.source).toBe('terminal');
+  });
+
   it('supports asynchronous execution with typed input and output', async () => {
     const { commandService } = createCommandService();
     commandService.register<{ value: number }, number>({

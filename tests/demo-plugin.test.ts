@@ -52,5 +52,24 @@ describe('demoPlugin', () => {
 
     app.runtime.shutdown();
     expect(app.commandService.get(DEMO_GREETING_COMMAND_ID)).toBeUndefined();
+    app.disposeUI();
+  });
+
+  it('can be explicitly opted into by the browser host through bootstrap options', async () => {
+    document.body.innerHTML = '<div id="app"></div>';
+
+    const app = await bootstrapApplication({
+      plugins: [demoPlugin],
+      runtimeOverrides: {
+        storage: {
+          driver: 'memory',
+        },
+      },
+    });
+
+    expect(app.pluginLoader.getStatus(DEMO_PLUGIN_ID)).toBe('loaded');
+    expect(app.commandService.get(DEMO_GREETING_COMMAND_ID)).toBeDefined();
+    app.disposeUI();
+    app.runtime.shutdown();
   });
 });
