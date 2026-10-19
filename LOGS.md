@@ -269,3 +269,45 @@ Workspace Manager is next in the planned sequence. Keep its scope aligned with `
 ### Next
 
 Confirm the next project objective before implementing another subsystem.
+
+## 2026-10-19 - Implemented Flagship Cube + Terminal Shell
+
+### Inspection and Architecture Findings
+
+- Verified the initial checkout was on `main` at `7000b182760a914bbd7860c2e1ae2175fff0da0c`, with a clean working tree and `origin/main` at the same commit; changes were made on a new local branch, `feat/cube-terminal-shell`.
+- Read `RULES.md`, `README.md`, `STATE.md`, `HANDOVER.md`, `LOGS.md`, the core/runtime/command/plugin/workspace/event/storage implementation, Demo Plugin tests, CSS, and build/test configuration before implementation.
+- Plugin activation, command registration, and workspace metadata existed, but there was no application definition binding an application name to a plugin, workspace item, and renderer.
+- Balances was not registered. The shell reports it unavailable rather than simulating activation.
+
+### Implementation
+
+- Added `src/ui/cube-indicator.ts`, `src/ui/terminal.ts`, and `src/ui/root-workspace.ts`; moved presentation out of `src/core/bootstrap`.
+- The cube uses real runtime, command, and plugin events. It tracks operation IDs for concurrency, distinguishes runtime health from command outcomes, compacts after success, remains red after failure, pauses while hidden, and respects reduced motion.
+- Added `command:started` and operation IDs to the existing CommandService outcome events; no second command registry was added.
+- Terminal dispatches exact registered command IDs through `CommandService`, provides registry-backed `help`, history navigation, pending-state protection, timestamped diagnostics, text-only output, a 200-line/4,000-character line limit, and hidden-tab event queuing.
+- The browser entrypoint explicitly opts into the existing demo greeting plugin. Workspace metadata appears only as a labeled placeholder.
+- Added focused command/core/demo/UI tests and updated the root documentation.
+
+### Files Changed
+
+- Updated `README.md`, `RULES.md`, `STATE.md`, `HANDOVER.md`, and this log.
+- Updated `src/core/bootstrap/bootstrap.ts`, `src/core/commands/command-service.ts`, `src/core/index.ts`, `src/main.ts`, and `src/styles.css`.
+- Removed `src/core/bootstrap/root-workspace.ts`.
+- Added `src/ui/cube-indicator.ts`, `src/ui/root-workspace.ts`, `src/ui/terminal.ts`, and `tests/ui-shell.test.ts`.
+- Updated `tests/command-service.test.ts`, `tests/core-engine.test.ts`, and `tests/demo-plugin.test.ts`.
+
+### Verification
+
+- `npm ci` was attempted but blocked with HTTP 403 for pinned `tinypool@1.1.1` under the package critical-CVE/security policy.
+- `npm test` could not start because `vitest` is unavailable; `npm run build` could not start because `tsc` is unavailable.
+- Current source contains 52 test cases across 7 files; tests and production build remain unverified for this change.
+- `git diff --check` passes; no commit or push has been made.
+
+### Limitations
+
+- Real application activation and rendering remain unsupported. `balances` is not a command or application.
+- Clean-install tests/build remain blocked until the pinned dependency is available under the package security policy.
+
+### Next
+
+Run the full test suite and production build in an environment that can install the pinned dependencies under the security policy, then re-check remote `main` before publishing.

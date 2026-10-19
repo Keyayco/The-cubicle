@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements the Phase 1 Cube OS core engine, Plugin Loader, Command System, a persisted Workspace Manager, and an optional sample Demo Plugin kept outside core. Its job is to provide foundational runtime services, plugin lifecycle, command dispatch, and workspace-item metadata/state without adding workspace UI or business-specific behavior.
+This repository implements the Phase 1 Cube OS core engine, Plugin Loader, Command System, persisted Workspace Manager, and the first Cube + Terminal shell. The shell is a focused browser interface over the existing runtime; it does not turn workspace metadata into applications or add a full desktop environment.
 
 The current codebase intentionally focuses on infrastructure:
 
@@ -14,12 +14,12 @@ The current codebase intentionally focuses on infrastructure:
 - Logging
 - Error normalization and capture
 - Storage abstraction
-- Minimal DOM rendering to prove successful boot
+- A CSS 3D cube status indicator and command terminal in `src/ui`
 - Trusted plugin definition registration and lifecycle
 - Command registration, lookup, and execution
 - Persisted system/plugin workspace items and active-item selection
 
-It intentionally does not implement command palette or keyboard shortcut UI, workspace sessions, windows, docks, sidebars, tabs, other application modules, authentication, or cloud sync.
+It intentionally does not implement command palette or keyboard shortcut UI, workspace sessions, windows, docks, sidebars, app modules, application rendering/activation, authentication, or cloud sync.
 
 ## Architectural Philosophy
 
@@ -35,9 +35,10 @@ It intentionally does not implement command palette or keyboard shortcut UI, wor
 The application is a single Vite-powered frontend entrypoint:
 
 - `index.html` provides the `#app` mount point.
-- `src/main.ts` imports styles and awaits `bootstrapApplication()`.
+- `src/main.ts` imports styles and explicitly opts the sample Demo Plugin into `bootstrapApplication()`.
 - `src/core/bootstrap/bootstrap.ts` wires all core services together.
-- `src/core/bootstrap/root-workspace.ts` renders the minimal Phase 1 workspace shell.
+- `src/ui/root-workspace.ts` mounts the shell after runtime initialization.
+- `src/ui/cube-indicator.ts` and `src/ui/terminal.ts` consume the existing runtime, command, plugin, event, and workspace contracts.
 
 Core subsystems live under `src/core`:
 
@@ -53,7 +54,7 @@ Core subsystems live under `src/core`:
 - `storage`: adapter contract and concrete storage implementations
 - `workspace`: persisted workspace-item metadata and active-item state
 
-The optional sample extension is outside core at `src/plugins/demo-plugin.ts` and is registered only by an explicit host.
+Presentation code lives under `src/ui` and does not own core service state. The sample extension is outside core at `src/plugins/demo-plugin.ts`; the default `bootstrapApplication()` still loads no plugins, while the browser host explicitly passes the demo plugin in `BootstrapOptions.plugins`.
 
 ## Directory Structure
 
@@ -71,6 +72,10 @@ The optional sample extension is outside core at `src/plugins/demo-plugin.ts` an
   src/
     main.ts
     styles.css
+    ui/
+      cube-indicator.ts
+      root-workspace.ts
+      terminal.ts
     plugins/
       demo-plugin.ts
     core/
@@ -93,7 +98,16 @@ The optional sample extension is outside core at `src/plugins/demo-plugin.ts` an
     command-service.test.ts
     demo-plugin.test.ts
     workspace-manager.test.ts
+    ui-shell.test.ts
 ```
+
+### `src/ui`
+
+- Render the Cube + Terminal shell using DOM APIs and text nodes.
+- Dispatch registered command IDs through `CommandService.execute()`; do not execute arbitrary shell text or invent command handlers in the presentation layer.
+- Display workspace metadata as a placeholder only. There is no application renderer contract.
+- Subscribe to existing runtime, plugin, command, and workspace events and remove every subscription when disposed.
+- Keep terminal history/logs session-only and bounded; redact sensitive-looking fields and do not store command output in persistent storage.
 
 ## Module Responsibilities
 
@@ -117,7 +131,7 @@ The optional sample extension is outside core at `src/plugins/demo-plugin.ts` an
 - Register command definitions in the existing `commands` registry category.
 - Validate command identifiers and metadata; rely on the shared Registry for duplicate rejection.
 - Provide command lookup, listing, unregister, and sync/async execution.
-- Emit `command:executed` and `command:failed`; normalize handler failures through `ErrorManager`.
+- Emit `command:started`, `command:executed`, and `command:failed` with a matching operation ID; normalize handler failures through `ErrorManager`.
 - Remain UI-agnostic: no palette, shortcuts, or workspace-specific commands.
 
 ### `src/plugins/demo-plugin.ts`
@@ -125,7 +139,7 @@ The optional sample extension is outside core at `src/plugins/demo-plugin.ts` an
 - Provide a small example `PluginDefinition` outside the core layer.
 - Register one greeting command through `PluginContext.commands`.
 - Remove that command in the plugin cleanup callback.
-- Remain opt-in: default bootstrap does not import, register, or activate it.
+- Remain opt-in at the core API level: the default bootstrap does not import, register, or activate it. `src/main.ts` opts it into the browser host using `BootstrapOptions.plugins`.
 
 ### `src/core/errors`
 
@@ -254,7 +268,9 @@ Important public contracts currently exported through `src/core/index.ts` includ
 - `RegistryCategory`
 - `Registry`
 - `CommandService`
+- `CommandExecutionOptions`
 - `CommandDefinition`
+- `CommandStartedEvent`
 - `CommandExecutedEvent`
 - `CommandFailedEvent`
 - `PluginLoader`
@@ -285,15 +301,19 @@ Important public contracts currently exported through `src/core/index.ts` includ
 
 The current runtime data flow is:
 
-1. `src/main.ts` awaits `bootstrapApplication()`.
-2. Bootstrap derives environment config and applies optional runtime overrides.
+1. `src/main.ts` calls `bootstrapApplication({ plugins: [demoPlugin] })`; the core bootstrap remains opt-in when no plugin option is supplied.
+2. Bootstrap derives environment config, applies optional runtime overrides, and registers only the host-provided plugin definitions.
 3. Bootstrap creates core services, including `WorkspaceManager`, then asynchronously hydrates and persists workspace state through `StorageService`.
-4. Bootstrap creates `Runtime`; `Runtime.initialize()` registers core services, attaches global handlers, loads registered plugins, emits `runtime:initialized`, logs startup, and transitions to `running`.
-5. Plugins can register commands through `PluginContext.commands`; the service uses the same `Registry` `commands` bucket.
-6. Bootstrap resolves the root container and renders the root workspace shell.
-7. The DOM reflects current runtime status and workspace text from config; workspace item metadata is not rendered.
+4. `Runtime.initialize()` registers core services, attaches global handlers, loads registered plugins, emits `runtime:initialized`, logs startup, and transitions to `running`.
+5. Plugins register commands through `PluginContext.commands`; all definitions use the shared `Registry` `commands` bucket.
+6. `CommandService.execute()` emits `command:started` before lookup/dispatch, then emits `command:executed` or `command:failed` with the same operation ID and event source.
+7. Bootstrap resolves the root container and mounts the `src/ui` shell after runtime initialization.
+8. The terminal submits exact registered command IDs through `CommandService`; its `help` view reads `CommandService.list()`. It does not interpret arbitrary shell text or arguments.
+9. The cube reflects runtime status, active command operation IDs, and plugin outcomes. The workspace area shows the active item's metadata and states that no application renderer is mounted.
 
-The optional demo plugin is not part of default bootstrap. A host explicitly registers its definition with `PluginLoader` and loads it when wanted.
+The optional demo plugin is not part of default core bootstrap. The browser host explicitly opts it in through `BootstrapOptions.plugins`; the rest of the app can use the same option to provide host-controlled plugins.
+
+Application activation remains unsupported. `PluginDefinition` has lifecycle hooks, and `WorkspaceManager` has item metadata/selection, but there is no contract joining an application alias to a plugin, a workspace item, and a view renderer. Do not treat a workspace item as an installed app. `balances` is not registered and must remain unavailable until a real application is implemented.
 
 During failures:
 
@@ -314,11 +334,11 @@ The initialization order in `bootstrapApplication()` is intentional:
 6. Create storage service using the selected adapter.
 7. Create `CommandService` with the shared registry, event bus, logger, and error manager.
 8. Create the Plugin Loader with the shared registry and services, including `CommandService`.
-9. Create `WorkspaceManager` with the shared `EventBus` and `StorageService`.
-10. Await `WorkspaceManager.initialize()` with the default seed items; saved items and active selection are retained where valid.
-11. Create and initialize Runtime with all core services, including the hydrated Workspace Manager.
-12. Resolve the DOM container.
-13. Render the root workspace shell.
+9. Register only the host-provided definitions in `BootstrapOptions.plugins`.
+10. Create `WorkspaceManager` with the shared `EventBus` and `StorageService`.
+11. Await `WorkspaceManager.initialize()` with the default seed items; saved items and active selection are retained where valid.
+12. Create and initialize Runtime with all core services, including the hydrated Workspace Manager.
+13. Resolve the DOM container and mount the shell from `src/ui/root-workspace.ts`.
 
 Do not render before `Runtime.initialize()` completes successfully.
 
@@ -352,6 +372,7 @@ Lifecycle events currently emitted:
 - `plugin:loaded`
 - `plugin:unloaded`
 - `plugin:failed`
+- `command:started`
 - `command:executed`
 - `command:failed`
 - `workspace:initialized`
@@ -381,7 +402,8 @@ If asynchronous or buffered delivery is added later, it must be introduced delib
 
 - `CommandService` uses the shared `Registry` `commands` category for storage and duplicate handling.
 - Command definitions have an identifier, UI-neutral display metadata (`title`, `keywords`), and an execution handler.
-- `CommandService.execute()` awaits synchronous or asynchronous handlers and returns the result.
+- `CommandService.execute()` emits `command:started` before lookup/dispatch, then awaits synchronous or asynchronous handlers and returns the result.
+- Start, success, and failure events carry the same operation ID; the event metadata source identifies the caller when provided.
 - Unknown IDs throw `CubeError` with `COMMAND_NOT_FOUND`; handler failures are normalized and captured centrally.
 - Plugins receive `CommandService` through `PluginContext.commands`; plugin cleanup owns unregistering commands it registered.
 - No keyboard shortcuts, command palette, or workspace-specific commands are part of core.
@@ -410,6 +432,23 @@ Do not couple higher-level modules directly to a specific storage backend.
 - Plugin-kind items are supported by the manager, but automatic Plugin Loader registration/cleanup integration is not implemented.
 - The manager is metadata-only; no UI or window/session model is part of this subsystem.
 
+## Cube + Terminal Shell
+
+- Presentation code remains in `src/ui`, separate from core service ownership.
+- The cube derives activity from `command:started`/outcome events, runtime status changes, runtime failures, and plugin load/failure events. It does not claim unimplemented health checks.
+- Runtime failure is tracked separately from the last command outcome. A successful command cannot clear an unhealthy Runtime; a later failure updates the cube even when no command is active.
+- The cube starts as a neutral CSS 3D element, accelerates while command operations are active, and moves to a static compact corner indicator after success. It uses no canvas or rendering dependency.
+- `document.visibilitychange` pauses decorative animation and defers cube DOM updates while hidden. `prefers-reduced-motion` disables motion.
+- The terminal dispatches an exact registered command ID through `CommandService`; it does not execute shell text or infer argument types. `help` lists only IDs returned by the shared service.
+- Terminal input is disabled while its own command is pending; command operation IDs let the cube track multiple callers concurrently.
+- Output uses `textContent`, is session-only, capped at 200 lines and 4,000 characters per line, and redacts sensitive-looking fields and delimited tabular output.
+- Terminal lines display the EventBus timestamp when sourced from an event, otherwise the local time when the line is created.
+- Terminal event lines are queued in a bounded in-memory buffer while hidden and rendered when the document becomes visible.
+- The compact-shrink Web Animation is paused while the document is hidden and canceled when the shell is disposed.
+- The workspace area displays the active item's metadata and explicitly states that there is no application renderer.
+
+Application activation is not yet supported. There is no contract joining an app name/command alias to a plugin lifecycle operation, a workspace item, and a renderer. Do not add a second plugin/command registry or claim that `balances` or another workspace item is an installed application.
+
 ## Error Handling
 
 - Normalize unknown throwables with `normalizeError()`.
@@ -433,6 +472,9 @@ Do not couple higher-level modules directly to a specific storage backend.
   - Storage service behavior via the memory adapter
   - Runtime lifecycle transition behavior across initialize, shutdown, and restart
   - Bootstrap success path, runtime registration, DOM rendering, and live runtime-status sync
+  - Cube state changes for command activity, success/failure, runtime failure after success, concurrent operations, and disposal
+  - Terminal submission, unknown and failed commands, command history, duplicate-submit prevention, log retention, and registry-backed help
+  - Explicit demo plugin opt-in through bootstrap options; missing application handling
   - Command registration, lookup, validation, execution, events, and plugin integration
   - Workspace item hydration, seed backfill, persistence, mutations, event emission, validation, and concurrency
   - Plugin registration, lookup, activation, cleanup, error handling, and Runtime lifecycle integration
@@ -442,8 +484,9 @@ Additional tests should focus on behavior contracts and lifecycle invariants rat
 
 ## Dependency Rules
 
-- `src/main.ts` should remain thin and delegate orchestration to `src/core`.
-- `src/main.ts` awaits the asynchronous bootstrap; service wiring remains in `bootstrapApplication()`.
+- Keep `src/main.ts` as a small browser-host entrypoint: it imports the sample plugin and passes the opt-in list to `bootstrapApplication()`.
+- Core service wiring remains in `bootstrapApplication()`; host plugin selection is not a second composition root.
+- Presentation belongs in `src/ui`; core services must not depend on presentation modules.
 - Cross-subsystem coupling should happen through exported contracts, not deep implicit knowledge.
 - Bootstrap is allowed to know about all core subsystems because it is the composition root.
 - Higher-level code should depend on `StorageService`, `LoggerContract`, `ConfigurationService`, `EventBus`, and `Registry` rather than browser globals or ad hoc singletons.
@@ -508,10 +551,11 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 
 ## Known Intentional Design Decisions
 
-- The Phase 1 UI is intentionally minimal and only proves that the runtime boots.
+- The Cube + Terminal shell is the browser-facing Phase 2 interface. Keep it focused; do not add a desktop/window system or imply app views that are not implemented.
 - The runtime registers existing services in-place instead of recreating them on restart.
 - `initialize()` avoids duplicate service registration by checking the registry before registering.
 - `LocalStorageAdapter` is only selected when configured and when `window` exists; otherwise bootstrap falls back to memory storage.
 - Global browser error handlers are attached only at runtime initialization, not at module import time.
-- Plugin definitions are registered and activated explicitly; the sample Demo Plugin is not bundled into the default app or auto-discovered.
-- WorkspaceManager hydration completes before Runtime initialization and plugin loading; its metadata is not rendered by the minimal root shell.
+- Plugin definitions are registered explicitly through `BootstrapOptions.plugins`; the default core bootstrap loads none. The browser entrypoint opts into the sample Demo Plugin.
+- WorkspaceManager hydration completes before Runtime initialization and plugin loading; the shell renders its metadata but does not treat it as an application renderer.
+- Application activation is not implemented: no app alias-to-plugin/workspace/render contract exists. Until one is deliberately designed, missing apps such as Balances must remain unavailable.

@@ -19,18 +19,31 @@ export interface CommandDefinition<TArgs = void, TResult = unknown> {
 
 export interface CommandExecutedEvent {
   commandId: string;
+  operationId: string;
   result: unknown;
 }
 
 export interface CommandFailedEvent {
   commandId: string;
+  operationId: string;
   error: CubeError;
+}
+
+export interface CommandStartedEvent {
+  commandId: string;
+  operationId: string;
+}
+
+export interface CommandExecutionOptions {
+  source?: string;
 }
 
 /**
  * Registers and executes commands through the shared Registry.
  */
 export class CommandService {
+  private operationSequence = 0;
+
   constructor(
     private readonly registry: Registry,
     private readonly eventBus: EventBus,
@@ -100,7 +113,17 @@ export class CommandService {
   public async execute<TArgs = void, TResult = unknown>(
     commandId: string,
     args?: TArgs,
+    options?: CommandExecutionOptions,
   ): Promise<TResult> {
+    const operationId = `command-${++this.operationSequence}`;
+    const metadata = { source: options?.source ?? 'command-service' };
+
+    this.eventBus.emit<CommandStartedEvent>(
+      'command:started',
+      { commandId, operationId },
+      metadata,
+    );
+
     const command = this.get<TArgs, TResult>(commandId);
 
     if (!command) {
@@ -110,8 +133,8 @@ export class CommandService {
       });
       this.eventBus.emit<CommandFailedEvent>(
         'command:failed',
-        { commandId, error },
-        { source: 'command-service' },
+        { commandId, operationId, error },
+        metadata,
       );
       throw error;
     }
@@ -129,8 +152,8 @@ export class CommandService {
       );
       this.eventBus.emit<CommandFailedEvent>(
         'command:failed',
-        { commandId, error: normalizedError },
-        { source: 'command-service' },
+        { commandId, operationId, error: normalizedError },
+        metadata,
       );
       throw normalizedError;
     }
@@ -138,8 +161,8 @@ export class CommandService {
     this.logger.info('Command executed.', { commandId });
     this.eventBus.emit<CommandExecutedEvent>(
       'command:executed',
-      { commandId, result },
-      { source: 'command-service' },
+      { commandId, operationId, result },
+      metadata,
     );
     return result;
   }

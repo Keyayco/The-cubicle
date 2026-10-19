@@ -174,11 +174,16 @@ describe('bootstrapApplication', () => {
       'runtime',
       'storage',
     ]);
-    expect(document.querySelector('.cube-root-workspace')).not.toBeNull();
-    expect(document.body.textContent).toContain('Core Engine');
-    expect(document.querySelector('.cube-runtime-status')?.textContent).toContain(
-      'running',
+    expect(document.querySelector('.cubicle-shell')).not.toBeNull();
+    expect(document.body.textContent).toContain('THE CUBICLE');
+    expect(document.querySelector('.cube-status-label')?.textContent).toContain(
+      'Ready',
     );
+    expect(document.querySelector('.application-workspace')?.textContent).toContain(
+      'metadata only',
+    );
+    result.disposeUI();
+    result.runtime.shutdown();
   });
 
   it('keeps the rendered workspace status synchronized with runtime lifecycle changes', async () => {
@@ -192,21 +197,22 @@ describe('bootstrapApplication', () => {
       },
     });
 
-    const workspace = document.querySelector('.cube-root-workspace');
-    const status = document.querySelector('.cube-runtime-status');
+    const cube = document.querySelector('.cube-stage');
+    const status = document.querySelector('.cube-status-label');
 
-    expect(workspace?.getAttribute('data-runtime-status')).toBe('running');
-    expect(status?.textContent).toContain('running');
+    expect(status?.textContent).toContain('Ready');
 
     result.runtime.shutdown();
 
-    expect(workspace?.getAttribute('data-runtime-status')).toBe('stopped');
-    expect(status?.textContent).toContain('stopped');
+    expect(status?.textContent).toContain('Stopped');
+    expect(cube?.getAttribute('data-state')).toBe('stopped');
 
     result.runtime.restart();
 
-    expect(workspace?.getAttribute('data-runtime-status')).toBe('running');
-    expect(status?.textContent).toContain('running');
+    expect(status?.textContent).toContain('Ready');
+    expect(cube?.getAttribute('aria-label')).toBe('Runtime status: Ready');
+    result.disposeUI();
+    result.runtime.shutdown();
   });
 
   it('unloads plugins during shutdown and reloads them on restart', async () => {
@@ -249,6 +255,8 @@ describe('bootstrapApplication', () => {
     expect(activate).toHaveBeenCalledTimes(2);
     expect(result.pluginLoader.getStatus('test.lifecycle')).toBe('loaded');
     expect(result.commandService.get('test.lifecycle.command')).toBeDefined();
+    result.disposeUI();
+    result.runtime.shutdown();
   });
 
   it('normalizes bootstrap render failures and detaches global handlers', async () => {
