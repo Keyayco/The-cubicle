@@ -4,7 +4,7 @@
 
 * Phase 1 core engine, Plugin Loader, Command System, optional Demo Plugin, and Workspace Manager complete
 
-* Phase 2 flagship Cube + Terminal shell implemented on local branch `feat/cube-terminal-shell`; changes are not committed or pushed
+* Phase 2 flagship Cube + Terminal shell is committed on `feat/cube-terminal-shell` in draft PR #5; it has not been merged
 
 ## Current Implementation Status
 
@@ -244,7 +244,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * `npm run build`: unable to start because `tsc` is not installed (`command not found`).
 
-* Clean-install verification is therefore unavailable in this environment. `git diff --check` is the remaining available source-level check.
+* Clean-install verification is therefore unavailable in this environment. `git diff --check` passed.
 
 ## Current Known Limitations
 
@@ -324,5 +324,5 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 ## What Should Be Worked On Next
 
-* Complete test/build verification when an approved dependency source is available; then review the final branch against the unchanged remote main before publication.
+* Complete test/build verification when an approved dependency source is available, then update draft PR #5 with the results before considering merge.
 

@@ -51,7 +51,7 @@ Before changing code, inspect these files and directories in this order:
 
 ## Current Objective
 
-The requested Phase 2 shell is implemented locally on `feat/cube-terminal-shell`. It includes the CSS cube, real command dispatch, bounded terminal output, and a metadata-only workspace placeholder. Application activation remains unsupported because the repository has no app-to-plugin/workspace/renderer contract; do not fake a Balances launch or add speculative infrastructure.
+The requested Phase 2 shell is committed on `feat/cube-terminal-shell` in draft PR #5. It includes the CSS cube, real command dispatch, bounded terminal output, and a metadata-only workspace placeholder. Application activation remains unsupported because the repository has no app-to-plugin/workspace/renderer contract; do not fake a Balances launch or add speculative infrastructure.
 
 ## Recommended Investigation Order
 
@@ -111,7 +111,7 @@ For this branch, restore a verifiable dependency environment first; then:
 1. Run `npm ci` only if the package security policy allows the pinned dependency.
 2. Run the full test suite and production build; report them as unverified until they actually execute.
 3. Inspect the final diff for unrelated changes and run `git diff --check`.
-4. Re-check remote `main` before publishing; do not publish if the branch diverged or unrelated files appeared.
+4. Before merging, re-check the PR base for divergence and run the tests/build once the dependency policy permits; no merge has been made.
 5. Keep app activation unsupported until its real plugin/workspace/view contract is designed.
 6. Keep `STATE.md`, `HANDOVER.md`, and `LOGS.md` synchronized with verified outcomes.
 

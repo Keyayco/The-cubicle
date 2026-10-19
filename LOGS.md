@@ -274,7 +274,7 @@ Confirm the next project objective before implementing another subsystem.
 
 ### Inspection and Architecture Findings
 
-- Verified the initial checkout was on `main` at `7000b182760a914bbd7860c2e1ae2175fff0da0c`, with a clean working tree and `origin/main` at the same commit; changes were made on a new local branch, `feat/cube-terminal-shell`.
+- Verified the initial checkout was on `main` at `7000b182760a914bbd7860c2e1ae2175fff0da0c`, with a clean working tree and `origin/main` at the same commit; created `feat/cube-terminal-shell`, commit `74cf3f4b9617ffe2bd39271a308feae12e78fead`, and draft PR #5.
 - Read `RULES.md`, `README.md`, `STATE.md`, `HANDOVER.md`, `LOGS.md`, the core/runtime/command/plugin/workspace/event/storage implementation, Demo Plugin tests, CSS, and build/test configuration before implementation.
 - Plugin activation, command registration, and workspace metadata existed, but there was no application definition binding an application name to a plugin, workspace item, and renderer.
 - Balances was not registered. The shell reports it unavailable rather than simulating activation.
@@ -301,7 +301,7 @@ Confirm the next project objective before implementing another subsystem.
 - `npm ci` was attempted but blocked with HTTP 403 for pinned `tinypool@1.1.1` under the package critical-CVE/security policy.
 - `npm test` could not start because `vitest` is unavailable; `npm run build` could not start because `tsc` is unavailable.
 - Current source contains 52 test cases across 7 files; tests and production build remain unverified for this change.
-- `git diff --check` passes; no commit or push has been made.
+- `git diff --check` passed before the commit. Draft PR #5 is open and unmerged; no production deployment or merge was made.
 
 ### Limitations
 
@@ -310,4 +310,4 @@ Confirm the next project objective before implementing another subsystem.
 
 ### Next
 
-Run the full test suite and production build in an environment that can install the pinned dependencies under the security policy, then re-check remote `main` before publishing.
+Run the full test suite and production build in an environment that can install the pinned dependencies under the security policy, then update draft PR #5 with verified results before considering merge.
