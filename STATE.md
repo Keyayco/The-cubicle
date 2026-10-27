@@ -2,17 +2,17 @@
 
 ## Current Project Phase
 
-* Phase 1 core engine
+* Core engine plus initial workspace manager
 
 ## Current Implementation Status
 
-* The repository implements a browser-based core runtime scaffold.
+* The repository implements a browser-based core runtime scaffold with a persisted workspace layer.
 
 * The frontend entrypoint is `src/main.ts`.
 
 * The composition root is `src/core/bootstrap/bootstrap.ts`.
 
-* The project currently validates successful boot by rendering a minimal root workspace into `#app`.
+* The project currently validates successful boot by hydrating workspace state and rendering the root workspace into `#app`.
 
 ## Completed Components
 
@@ -36,23 +36,29 @@
 
 * Memory storage adapter
 
+* Workspace manager
+
+* Persisted workspace item hydration and active-item selection
+
 * Root workspace renderer
 
 * Runtime status-change event emission
 
 * Live runtime-status syncing in the root workspace shell
 
+* Workspace state-change event emission
+
+* Active workspace module rendering in the root workspace shell
+
 * Public core barrel exports
 
-* Vitest coverage for event bus, registry, storage, runtime lifecycle, and bootstrap
+* Vitest coverage for event bus, registry, storage, runtime lifecycle, workspace state, and bootstrap
 
 ## Components Currently Being Implemented
 
 * AI handover infrastructure at the repository root
 
 ## Components Not Yet Implemented
-
-* Workspace manager
 
 * Window system
 
@@ -78,6 +84,7 @@ src/
     registry/
     runtime/
     storage/
+    workspace/
     index.ts
 tests/
   core-engine.test.ts
@@ -98,6 +105,8 @@ tests/
 * `src/core/bootstrap/bootstrap.ts`
 
 * `src/core/runtime/runtime.ts`
+
+* `src/core/workspace/workspace-manager.ts`
 
 * `src/core/bootstrap/root-workspace.ts`
 
@@ -123,6 +132,8 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Storage contract, service, and adapters
 
+* Workspace manager and workspace state types
+
 ## Current Tests
 
 * `tests/core-engine.test.ts`
@@ -139,7 +150,9 @@ The public core exports currently come from `src/core/index.ts` and include:
 
   * Runtime lifecycle transition events across initialize, shutdown, and restart
 
-  * Bootstrap success path, root workspace render, and live status updates during lifecycle changes
+  * Workspace manager hydration, persistence, and rehydration behavior
+
+  * Bootstrap success path, root workspace render, live runtime-status sync, and active workspace-panel sync
 
 ## Current Build Status
 
@@ -157,7 +170,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * No persisted lifecycle recovery or app orchestration
 
-* No advanced UI beyond the minimal root workspace shell
+* No window system or multi-panel desktop layout beyond the initial workspace shell
 
 * No test coverage yet for runtime failure emission or config override edge cases
 
@@ -187,7 +200,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * `src/core/index.ts` remains the intended public barrel.
 
-* The current root workspace remains a boot-validation shell rather than a real workspace manager, even though it now reflects runtime lifecycle changes live.
+* The current root workspace remains an early shell for the workspace manager rather than a full desktop/windowing environment.
 
 ## Current Blockers
 
@@ -197,15 +210,14 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 ## Most Recently Changed
 
-* Runtime lifecycle state changes are now emitted as a generic event and mirrored live in the root workspace shell
+* The workspace manager now hydrates persisted workspace items, exposes active-item selection, and is registered as a core service
 
-* Runtime and bootstrap coverage now includes initialize/shutdown/restart lifecycle behavior
+* The root workspace shell now renders and updates the active workspace module alongside runtime status
 
 ## What Should Be Worked On Next
 
 * After verification, choose the next concrete objective:
 
-  * harden Phase 1 further with failure-path and config-override tests, or
+  * harden runtime failure-path and config-override tests, or
 
-  * begin the next planned subsystem such as plugin loading or workspace management
-
+  * begin the next planned subsystem such as plugin loading or a window system layered on top of the workspace manager

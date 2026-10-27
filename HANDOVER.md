@@ -2,20 +2,21 @@
 
 ## Project Context
 
-This repository is `cube-os-core-engine`, a TypeScript frontend application built with Vite and tested with Vitest. It currently implements Phase 1 of Cube OS: the foundational browser runtime and its core services, not the higher-level OS features.
+This repository is `cube-os-core-engine`, a TypeScript frontend application built with Vite and tested with Vitest. It currently implements the foundational browser runtime plus an initial persisted workspace manager, not the higher-level OS features such as plugin loading or windowing.
 
-The current codebase is intentionally infrastructure-first. It proves that the runtime can be bootstrapped, core services can be registered, and a minimal workspace shell can be rendered.
+The current codebase is intentionally infrastructure-first. It proves that the runtime can be bootstrapped, core services can be registered, workspace state can be hydrated from storage, and a minimal workspace shell can be rendered.
 
 ## Current Position
 
 - Core engine services are implemented under `src/core`
 - The browser entrypoint is `src/main.ts`
 - Bootstrap orchestration lives in `src/core/bootstrap/bootstrap.ts`
-- Current tests cover event bus, registry, storage, and bootstrap success
+- Current tests cover event bus, registry, storage, workspace state, and bootstrap success
 - Verification has been run in this environment with `npm ci`, `npm test`, and `npm run build`
 - Runtime lifecycle transitions now emit a generic `runtime:status-changed` event
-- The root workspace shell now updates its displayed runtime status when lifecycle changes occur
-- Higher-level systems such as plugin loading and workspace management are not implemented yet
+- The workspace manager hydrates persisted items, exposes active-item selection, and is registered as a core service
+- The root workspace shell now updates its displayed runtime status and active workspace module
+- Higher-level systems such as plugin loading and window management are not implemented yet
 - The root handover documentation has been added and must be kept current
 
 ## Read First
@@ -35,8 +36,9 @@ Before changing code, inspect these files and directories in this order:
 11. `src/core/events/`
 12. `src/core/registry/`
 13. `src/core/storage/`
-14. `src/core/errors/`
-15. `tests/`
+14. `src/core/workspace/`
+15. `src/core/errors/`
+16. `tests/`
 
 ## Current Objective
 
@@ -44,8 +46,8 @@ The immediate objective after this handover setup is to keep the new handover fi
 
 If no separate product task has been provided, the most reasonable next step is to either:
 
-- harden the Phase 1 runtime with additional lifecycle and failure-path tests, or
-- begin the first deliberately planned post-Phase-1 subsystem
+- harden the runtime with additional failure-path and config-override tests, or
+- begin the next subsystem that should layer on top of the workspace manager
 
 ## Recommended Investigation Order
 
@@ -75,7 +77,8 @@ If no separate product task has been provided, the most reasonable next step is 
 - `Runtime` now emits `runtime:status-changed` whenever its inspectable status moves between lifecycle states.
 - The runtime already reserves registry categories for `plugins` and `commands`, but those systems do not exist yet.
 - `StorageService` is the stable abstraction; the rest of the system should not depend directly on `window.localStorage`.
-- Current UI rendering is intentionally minimal and exists only to validate that the core engine booted successfully, while now reflecting runtime status changes live.
+- `WorkspaceManager.initialize()` hydrates and persists workspace state through `StorageService`.
+- Current UI rendering is intentionally minimal and exists only to validate that the core engine booted successfully, while now reflecting runtime status and active workspace state live.
 - `src/core/index.ts` is the public export surface for reusable core APIs.
 
 ## Do Not Assume
@@ -83,6 +86,7 @@ If no separate product task has been provided, the most reasonable next step is 
 - Do not assume plugin support exists because `RegistryCategory` includes `plugins`.
 - Do not assume command execution exists because `RegistryCategory` includes `commands`.
 - Do not assume runtime failure paths or config override edge cases have comprehensive test coverage.
+- Do not assume the workspace manager is a full desktop/window manager; it currently tracks persisted modules and the active item only.
 - Do not assume build and test status if you have not run them in the current state.
 - Do not assume dependencies are already installed in a clean environment; run `npm ci` first.
 - Do not assume a next phase has already been decided just because Phase 1 exclusions are listed in `README.md`.
@@ -94,9 +98,9 @@ Unless a user gives a more specific task, the clearest next actions are:
 
 1. Verify `npm test`
 2. Verify `npm run build`
-3. Expand coverage around runtime failure emission, global error handling, and config override behavior if Phase 1 hardening is chosen
-4. Record any noteworthy findings in `LOGS.md`
-5. Decide whether to harden Phase 1 further or start the next subsystem with a clearly documented objective
+3. Expand coverage around runtime failure emission, global error handling, and config override behavior if hardening is chosen
+4. Decide whether to layer a window system or plugin surfaces onto the workspace manager next
+5. Record any noteworthy findings in `LOGS.md`
 
 ## Documentation Workflow
 
