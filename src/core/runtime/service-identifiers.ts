@@ -6,6 +6,7 @@ export const CORE_SERVICE_IDS = {
   errorManager: 'errorManager',
   eventBus: 'eventBus',
   logger: 'logger',
+  pluginManager: 'pluginManager',
   registry: 'registry',
   runtime: 'runtime',
   storage: 'storage',

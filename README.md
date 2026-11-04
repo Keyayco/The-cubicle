@@ -1,6 +1,6 @@
 # Cube OS Core Engine
 
-Cube establishes the production-grade foundation for a plugin-first, browser-based operating system. This repository now implements the core engine plus an initial persisted workspace manager, while still avoiding application modules, dashboards, and business-specific features.
+Cube establishes the production-grade foundation for a plugin-first, browser-based operating system. This repository now implements the core engine plus an initial persisted workspace manager and plugin lifecycle manager, while still avoiding application modules, dashboards, and business-specific features.
 
 ## Scope
 
@@ -15,11 +15,12 @@ Current scope includes:
 - Configuration service
 - Centralized error handling
 - Workspace manager with persisted state and active-item selection
+- Plugin manager with lifecycle control, failure isolation, and workspace contribution
 
 The repository still explicitly excludes:
 
+- Dynamic plugin loading from external modules
 - Window system
-- Plugin loader
 - Feature modules and apps
 - Authentication
 - Cloud sync
@@ -34,6 +35,7 @@ src/
     errors/
     events/
     logger/
+    plugins/
     registry/
     runtime/
     storage/
@@ -42,9 +44,10 @@ src/
 
 ### Design Notes
 
-- Plugin-first: the runtime exposes stable services that future plugins can consume.
+- Plugin-first: the runtime exposes stable services, and `PluginManager` gives plugins a controlled lifecycle plus a `PluginContext` for consuming them.
 - Event-driven: the `EventBus` provides decoupled communication where direct module coupling is not appropriate.
 - Workspace state is persisted through `StorageService` and observed through workspace events.
+- Plugin workspace surfaces register items through `WorkspaceManager` instead of mutating the DOM directly.
 - Separated concerns: each subsystem owns one responsibility and is wired together only at bootstrap time.
 - No circular dependencies: services depend on contracts and orchestration happens through the runtime.
 - Storage abstraction: callers depend on `StorageService`, not on `localStorage` or a specific persistence engine.

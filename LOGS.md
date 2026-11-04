@@ -140,3 +140,41 @@ The runtime could bootstrap and render a minimal shell, but the project still la
 
 - `npm ci` still reports 1 high severity vulnerability in the dependency tree
 - Runtime failure-path and config-override coverage remain worthwhile follow-up hardening work
+
+## 2026-09-05 - Plugin Manager Introduction
+
+### Issue
+
+The registry reserved a `plugins` category and the workspace already supported `plugin`-kind items, but no subsystem could register or drive a plugin lifecycle. There was no controlled way for extensions to reach core services, and no isolation if a plugin failed.
+
+### Finding
+
+- `Registry` already supported the `plugins` category with duplicate protection, so it was the right source of truth for plugin definitions
+- `WorkspaceManager` already modelled `kind: 'plugin'` items, so plugin surfaces could contribute modules without new UI concepts
+- `EventBus`, `LoggerContract`, and `normalizeError` provided everything needed for lifecycle events and failure isolation
+- The existing `npm ci` dependency install was wiped between sessions, so verification had to reinstall before tests/build would run
+
+### Resolution
+
+- Added `src/core/plugins/plugin-manager.ts` defining `CubePlugin`, `PluginContext`, `PluginStatus`, and `PluginManager`
+- Plugin definitions are stored in the `plugins` registry category; duplicates and unknown ids are rejected
+- Implemented `register`, `activate`, `deactivate`, `activateAll`, `deactivateAll`, `list`, `get`, `getStatus`, and `isActive`
+- Plugin failures are normalized to `CubeError` with code `PLUGIN_LIFECYCLE_FAILED`, emitted as `plugin:failed`, mark status `error`, and rethrow
+- Registered `PluginManager` as a core service through `CORE_SERVICE_IDS` and wired it into `RuntimeServices` and bootstrap
+- Bootstrap now activates registered plugins after workspace hydration and exposes `pluginManager` in the bootstrap result
+- The root workspace shell renders a live plugin summary and reacts to plugin lifecycle events
+- Added tests for registration, activation/deactivation ordering, duplicate rejection, failure isolation, workspace contribution, and UI summary
+- Re-ran `npm ci`, `npm test`, and `npm run build`
+
+### Impact
+
+- Plugins now have a first-class, observable lifecycle instead of relying on ad hoc registry writes
+- Plugin surfaces can contribute workspace items through `PluginContext.workspace`, keeping DOM mutation out of extensions
+- A failing plugin cannot silently corrupt runtime state: it is recorded, emitted, and surfaced to the caller
+
+### Notes
+
+- Dynamic loading of plugin code from external modules is still out of scope; plugins are registered programmatically
+- `npm ci` now reports 6 vulnerabilities (1 moderate, 3 high, 2 critical) in the dependency tree, up from the previously noted single high; this has not been investigated
+- The `commands` registry category remains reserved and unimplemented
+

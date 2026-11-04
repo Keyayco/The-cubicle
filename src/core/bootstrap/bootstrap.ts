@@ -3,6 +3,7 @@ import type { CubeConfig, RuntimeMode } from '../config/default-config';
 import { ErrorManager } from '../errors/error-manager';
 import { EventBus } from '../events/event-bus';
 import { Logger } from '../logger/logger';
+import { PluginManager } from '../plugins/plugin-manager';
 import { Registry } from '../registry/registry';
 import { Runtime } from '../runtime/runtime';
 import { LocalStorageAdapter } from '../storage/local-storage-adapter';
@@ -25,6 +26,7 @@ export interface BootstrapResult {
   errorManager: ErrorManager;
   eventBus: EventBus;
   logger: Logger;
+  pluginManager: PluginManager;
   registry: Registry;
   runtime: Runtime;
   storage: StorageService;
@@ -123,11 +125,18 @@ const bootstrapApplicationInternal = async (
   const errorManager = new ErrorManager(logger, eventBus);
   const storage = new StorageService(createStorageAdapter(config.getAll()));
   const workspaceManager = new WorkspaceManager(eventBus, storage);
+  const pluginManager = new PluginManager(
+    registry,
+    eventBus,
+    logger,
+    workspaceManager,
+  );
   const runtime = new Runtime({
     config,
     errorManager,
     eventBus,
     logger,
+    pluginManager,
     registry,
     storage,
     workspaceManager,
@@ -137,6 +146,7 @@ const bootstrapApplicationInternal = async (
 
   try {
     await workspaceManager.initialize(createDefaultWorkspaceItems(config.getAll()));
+    await pluginManager.activateAll();
     const rootElement = resolveRootElement(config, options?.container);
     renderRootWorkspace(rootElement, config.getAll(), runtime, workspaceManager);
   } catch (error) {
@@ -152,6 +162,7 @@ const bootstrapApplicationInternal = async (
     errorManager,
     eventBus,
     logger,
+    pluginManager,
     registry,
     runtime,
     storage,

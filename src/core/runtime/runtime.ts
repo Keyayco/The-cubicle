@@ -2,6 +2,7 @@ import type { ConfigurationService } from '../config/config-service';
 import type { ErrorManager } from '../errors/error-manager';
 import type { EventBus } from '../events/event-bus';
 import type { LoggerContract } from '../logger/types';
+import type { PluginManager } from '../plugins/plugin-manager';
 import type { Registry } from '../registry/registry';
 import type { StorageService } from '../storage/storage-service';
 import type { WorkspaceManager } from '../workspace/workspace-manager';
@@ -25,6 +26,7 @@ export interface RuntimeServices {
   errorManager: ErrorManager;
   eventBus: EventBus;
   logger: LoggerContract;
+  pluginManager: PluginManager;
   registry: Registry;
   storage: StorageService;
   workspaceManager: WorkspaceManager;
@@ -130,6 +132,7 @@ export class Runtime {
       [CORE_SERVICE_IDS.errorManager]: this.services.errorManager,
       [CORE_SERVICE_IDS.eventBus]: this.services.eventBus,
       [CORE_SERVICE_IDS.logger]: this.services.logger,
+      [CORE_SERVICE_IDS.pluginManager]: this.services.pluginManager,
       [CORE_SERVICE_IDS.registry]: this.services.registry,
       [CORE_SERVICE_IDS.runtime]: this,
       [CORE_SERVICE_IDS.storage]: this.services.storage,

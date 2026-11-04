@@ -21,6 +21,14 @@ export type {
   LogLevel,
   LoggerContract,
 } from './logger/types';
+export {
+  PluginManager,
+  type CubePlugin,
+  type PluginContext,
+  type PluginDescriptor,
+  type PluginFailure,
+  type PluginStatus,
+} from './plugins/plugin-manager';
 export { Registry, type RegistryCategory } from './registry/registry';
 export {
   CORE_SERVICE_IDS,

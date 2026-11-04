@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This repository implements the Cube browser runtime foundation plus an initial workspace manager. Its job is to provide the foundational runtime services and workspace state orchestration that later phases can build on without introducing application-specific behavior.
+This repository implements the Cube browser runtime foundation plus an initial workspace manager and plugin lifecycle manager. Its job is to provide the foundational runtime services that later phases can build on without introducing application-specific behavior.
 
 The current codebase intentionally focuses on infrastructure:
 
@@ -15,9 +15,10 @@ The current codebase intentionally focuses on infrastructure:
 - Error normalization and capture
 - Storage abstraction
 - Workspace state management
-- Minimal DOM rendering to prove successful boot and visualize workspace state
+- Plugin registration and lifecycle control
+- Minimal DOM rendering to prove successful boot and visualize workspace and plugin state
 
-It intentionally does not implement application modules, a window system, a plugin loader, authentication, or cloud sync.
+It intentionally does not implement application modules, a window system, dynamic plugin loading from external modules, authentication, or cloud sync.
 
 ## Architectural Philosophy
 
@@ -44,6 +45,7 @@ Core subsystems live under `src/core`:
 - `errors`: consistent error type and centralized error handling
 - `events`: in-process event bus
 - `logger`: structured logging with level filtering
+- `plugins`: plugin registration, lifecycle control, and failure isolation
 - `registry`: runtime-owned service/object registry
 - `runtime`: lifecycle state machine and service exposure
 - `storage`: adapter contract and concrete storage implementations
@@ -71,9 +73,11 @@ Core subsystems live under `src/core`:
       errors/
       events/
       logger/
+      plugins/
       registry/
       runtime/
       storage/
+      workspace/
       index.ts
   tests/
     core-engine.test.ts
@@ -114,6 +118,14 @@ Core subsystems live under `src/core`:
 - Provide structured log entries with a consistent level model.
 - Filter messages by enabled state and minimum log level.
 - Use a sink-based design so output behavior can be swapped in the future.
+
+### `src/core/plugins`
+
+- Define the `CubePlugin` lifecycle contract and the `PluginContext` handed to plugins.
+- Register and track plugin definitions through the `plugins` registry category.
+- Drive `register`, `activate`, `deactivate`, `activateAll`, and `deactivateAll` lifecycles.
+- Isolate plugin failures by normalizing errors, emitting `plugin:failed`, and marking status `error`.
+- Expose plugin descriptors, status, and lookup helpers.
 
 ### `src/core/registry`
 
@@ -179,6 +191,14 @@ All runtime code should depend on `StorageService` or the `StorageAdapter` contr
 
 Owns the current workspace snapshot, persists it, and exposes operations for item registration, activation, and removal.
 
+### `PluginManager`
+
+Owns the plugin registry and lifecycle. Plugins receive a `PluginContext` exposing the event bus, logger, registry, and workspace manager, so plugin surfaces register workspace items through `WorkspaceManager` rather than touching the DOM.
+
+### `CubePlugin` and `PluginContext`
+
+A plugin declares `id`, `name`, `version`, an optional `description`, an `activate(context)` hook, and an optional `deactivate(context)` hook. Hooks may be synchronous or asynchronous. The context is the only sanctioned channel for a plugin to reach core services.
+
 ### `CubeError` and `ErrorManager`
 
 Errors should be normalized and routed through the central error manager for consistency and observability.
@@ -215,6 +235,11 @@ Important public contracts currently exported through `src/core/index.ts` includ
 - `WorkspaceItem`
 - `WorkspaceSnapshot`
 - `WorkspaceManager`
+- `CubePlugin`
+- `PluginContext`
+- `PluginDescriptor`
+- `PluginStatus`
+- `PluginManager`
 
 `src/core/index.ts` is the public barrel for the core engine. New reusable core APIs should generally be exported there once they are intended for external consumption.
 
@@ -224,11 +249,12 @@ The current runtime data flow is:
 
 1. `src/main.ts` calls `bootstrapApplication()`.
 2. Bootstrap derives environment config and applies optional runtime overrides.
-3. Bootstrap creates `ConfigurationService`, `Registry`, `EventBus`, `Logger`, `ErrorManager`, `StorageService`, and `Runtime`.
+3. Bootstrap creates `ConfigurationService`, `Registry`, `EventBus`, `Logger`, `ErrorManager`, `StorageService`, `WorkspaceManager`, and `PluginManager`.
 4. `Runtime.initialize()` registers services, attaches global handlers, emits `runtime:initialized`, logs startup, and transitions to `running`.
 5. `WorkspaceManager.initialize()` hydrates persisted workspace state and backfills seed items.
-6. Bootstrap resolves the root container and renders the root workspace view.
-7. The DOM reflects the current runtime status, workspace summary, and active workspace item.
+6. `PluginManager.activateAll()` activates registered plugins, which may contribute workspace items through the context.
+7. Bootstrap resolves the root container and renders the root workspace view.
+8. The DOM reflects the current runtime status, workspace summary, active workspace item, and plugin summary.
 
 During failures:
 
@@ -248,11 +274,13 @@ The initialization order in `bootstrapApplication()` is intentional:
 5. Create error manager using logger and event bus.
 6. Create storage service using the selected adapter.
 7. Create workspace manager.
-8. Create runtime with all services.
-9. Initialize runtime.
-10. Hydrate the workspace manager.
-11. Resolve the DOM container.
-12. Render the root workspace.
+8. Create plugin manager.
+9. Create runtime with all services.
+10. Initialize runtime.
+11. Hydrate the workspace manager.
+12. Activate registered plugins.
+13. Resolve the DOM container.
+14. Render the root workspace.
 
 Do not render before `Runtime.initialize()` completes successfully.
 
@@ -286,6 +314,10 @@ Lifecycle events currently emitted:
 - `workspace:item-registered`
 - `workspace:item-removed`
 - `workspace:active-item-changed`
+- `plugin:registered`
+- `plugin:activated`
+- `plugin:deactivated`
+- `plugin:failed`
 
 ## Event System
 
@@ -302,7 +334,9 @@ If asynchronous or buffered delivery is added later, it must be introduced delib
 - The registry owns fixed categories: `services`, `plugins`, `commands`.
 - `register()` throws on duplicate identifiers in a category.
 - Runtime core services are registered under the `services` category using `CORE_SERVICE_IDS`.
+- Plugin definitions are stored under the `plugins` category, keyed by plugin id.
 - Service retrieval should go through `Runtime.getService()` or `Registry.get('services', ...)` rather than ad hoc globals.
+- The `commands` category remains reserved and unimplemented.
 
 ## Workspace System
 
@@ -310,6 +344,17 @@ If asynchronous or buffered delivery is added later, it must be introduced delib
 - Workspace state is persisted under a storage key and restored on the next boot.
 - Seed items are merged back in when missing so new system panels can appear after upgrades.
 - The root workspace UI reflects the active workspace item and listens for `workspace:state-changed`.
+
+## Plugin System
+
+- `PluginManager` is the runtime-facing abstraction for plugin lifecycle.
+- Plugin definitions live in the `plugins` registry category and are keyed by id; duplicates are rejected.
+- Lifecycle status is tracked per plugin: `registered`, `activated`, `deactivated`, `error`.
+- `activateAll()` activates plugins in registration order; `deactivateAll()` runs in reverse order.
+- A plugin reaches core services only through `PluginContext`; it must not import browser globals or mutate the DOM directly.
+- Plugin surfaces should contribute workspace items via `context.workspace.registerItem()` with `kind: 'plugin'`.
+- A failing activation or deactivation is normalized to a `CubeError`, emitted as `plugin:failed`, marks the plugin `error`, and rethrows.
+- Dynamic loading of plugin code from external modules is out of scope; plugins are registered programmatically.
 
 ## Storage System
 
@@ -343,7 +388,9 @@ Do not couple higher-level modules directly to a specific storage backend.
   - Registry CRUD behavior
   - Storage service behavior via the memory adapter
   - Runtime lifecycle transition behavior across initialize, shutdown, and restart
-  - Bootstrap success path, runtime registration, DOM rendering, and live runtime-status sync
+  - Workspace hydration, persistence, and rehydration behavior
+  - Plugin registration, activation/deactivation ordering, failure isolation, and workspace contribution
+  - Bootstrap success path, runtime registration, DOM rendering, and live runtime-status, workspace, and plugin sync
 
 Additional tests should focus on behavior contracts and lifecycle invariants rather than implementation trivia.
 
@@ -372,12 +419,13 @@ Additional tests should focus on behavior contracts and lifecycle invariants rat
 
 ## Extension And Plugin Rules
 
-- The runtime and registry already reserve a `plugins` registry category, but plugin loading is not implemented yet.
-- Future plugin systems should consume stable core services through the runtime/registry rather than bypassing them.
-- Future plugin workspace surfaces should register items through `WorkspaceManager` rather than mutating the DOM directly.
-- Any plugin loader must preserve the current separation between the core engine and feature modules.
+- `PluginManager` implements the `plugins` registry category and the plugin lifecycle.
+- Plugins consume stable core services through `PluginContext` rather than bypassing the runtime/registry.
+- Plugin workspace surfaces register items through `WorkspaceManager` rather than mutating the DOM directly.
+- Dynamic plugin loading from external modules is still out of scope; new plugin systems must preserve the separation between the core engine and feature modules.
+- A plugin must never be able to break runtime boot; activation failures are isolated, recorded, and rethrown to the caller.
 
-Do not add plugin-specific behavior into the Phase 1 core without a deliberate architectural change.
+Do not add plugin-specific product behavior into the core without a deliberate architectural change.
 
 ## Architectural Invariants
 
@@ -391,6 +439,7 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - Configuration remains immutable once built.
 - Storage remains abstracted behind `StorageService` and `StorageAdapter`.
 - Workspace state remains observable and persisted through `WorkspaceManager`.
+- Plugin lifecycle remains observable through `PluginManager` and plugin events.
 - Unexpected errors remain normalized and observable.
 - The event bus remains lightweight and duplicate-listener safe.
 - The runtime remains free of business-specific logic.
@@ -403,7 +452,8 @@ The following must remain true unless `RULES.md` is explicitly updated to reflec
 - Do not register duplicate services into the registry.
 - Do not render the workspace before the runtime has initialized.
 - Do not turn `src/main.ts` into a second composition root.
-- Do not treat the presence of `plugins` and `commands` registry categories as proof that those systems already exist.
+- Do not treat the presence of the `commands` registry category as proof that a command system exists.
+- Do not let plugins bypass `PluginContext` to reach browser globals or internal module state.
 
 ## Known Intentional Design Decisions
 

@@ -31,6 +31,9 @@ export const renderRootWorkspace = (
   const workspaceSummary = document.createElement('p');
   workspaceSummary.className = 'cube-workspace-summary';
 
+  const pluginSummary = document.createElement('p');
+  pluginSummary.className = 'cube-plugin-summary';
+
   const itemList = document.createElement('nav');
   itemList.className = 'cube-workspace-nav';
   itemList.setAttribute('aria-label', 'Workspace modules');
@@ -83,8 +86,16 @@ export const renderRootWorkspace = (
       : 'Kind: none';
   };
 
+  const syncPluginState = (): void => {
+    const plugins = runtime.getServices().pluginManager.list();
+    const activeCount = plugins.filter((plugin) => plugin.status === 'activated').length;
+
+    pluginSummary.textContent = `${plugins.length} plugins registered, ${activeCount} active.`;
+  };
+
   syncRuntimeStatus(runtime.getStatus());
   syncWorkspaceState();
+  syncPluginState();
 
   runtime
     .getServices()
@@ -100,7 +111,17 @@ export const renderRootWorkspace = (
     syncWorkspaceState();
   });
 
-  header.append(title, description, status, workspaceSummary);
+  runtime.getServices().eventBus.on('plugin:registered', () => {
+    syncPluginState();
+  });
+  runtime.getServices().eventBus.on('plugin:activated', () => {
+    syncPluginState();
+  });
+  runtime.getServices().eventBus.on('plugin:deactivated', () => {
+    syncPluginState();
+  });
+
+  header.append(title, description, status, workspaceSummary, pluginSummary);
   activePanel.append(activeLabel, activeTitle, activeDescription, activeMeta);
   workspace.append(header, itemList, activePanel);
   container.append(workspace);

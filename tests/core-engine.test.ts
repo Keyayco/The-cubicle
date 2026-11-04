@@ -6,6 +6,9 @@ import {
   EventBus,
   Logger,
   MemoryStorageAdapter,
+  PluginManager,
+  type CubePlugin,
+  type PluginFailure,
   Registry,
   Runtime,
   type RuntimeStatusChange,
@@ -92,11 +95,18 @@ describe('Runtime', () => {
     const errorManager = new ErrorManager(logger, eventBus);
     const storage = new StorageService(new MemoryStorageAdapter());
     const workspaceManager = new WorkspaceManager(eventBus, storage);
+    const pluginManager = new PluginManager(
+      registry,
+      eventBus,
+      logger,
+      workspaceManager,
+    );
     const runtime = new Runtime({
       config,
       errorManager,
       eventBus,
       logger,
+      pluginManager,
       registry,
       storage,
       workspaceManager,
@@ -218,6 +228,186 @@ describe('WorkspaceManager', () => {
       rehydratedWorkspaceManager.listItems().map((item) => item.id),
     ).toEqual(['overview', 'storage', 'runtime', 'diagnostics']);
     expect(rehydratedWorkspaceManager.getActiveItem()?.id).toBe('storage');
+  });
+});
+
+describe('PluginManager', () => {
+  const createHarness = async () => {
+    const registry = new Registry();
+    const eventBus = new EventBus();
+    const logger = new Logger({ sink: () => undefined });
+    const storage = new StorageService(new MemoryStorageAdapter());
+    const workspaceManager = new WorkspaceManager(eventBus, storage);
+
+    await workspaceManager.initialize();
+
+    const pluginManager = new PluginManager(
+      registry,
+      eventBus,
+      logger,
+      workspaceManager,
+    );
+
+    return { registry, eventBus, workspaceManager, pluginManager };
+  };
+
+  it('registers, activates, contributes workspace items, and deactivates plugins', async () => {
+    const { registry, eventBus, workspaceManager, pluginManager } =
+      await createHarness();
+    const events: string[] = [];
+
+    eventBus.on('plugin:registered', () => events.push('registered'));
+    eventBus.on('plugin:activated', () => events.push('activated'));
+    eventBus.on('plugin:deactivated', () => events.push('deactivated'));
+
+    const plugin: CubePlugin = {
+      id: 'notes',
+      name: 'Notes',
+      version: '1.0.0',
+      async activate(context) {
+        await context.workspace.registerItem({
+          id: 'notes',
+          title: 'Notes',
+          description: 'Notes plugin surface.',
+          kind: 'plugin',
+        });
+      },
+    };
+
+    pluginManager.register(plugin);
+
+    expect(registry.has('plugins', 'notes')).toBe(true);
+    expect(pluginManager.getStatus('notes')).toBe('registered');
+    expect(pluginManager.isActive('notes')).toBe(false);
+
+    await pluginManager.activate('notes');
+
+    expect(pluginManager.isActive('notes')).toBe(true);
+    expect(
+      workspaceManager.listItems().some((item) => item.kind === 'plugin'),
+    ).toBe(true);
+
+    await pluginManager.deactivate('notes');
+
+    expect(pluginManager.isActive('notes')).toBe(false);
+    expect(pluginManager.getStatus('notes')).toBe('deactivated');
+    expect(events).toEqual(['registered', 'activated', 'deactivated']);
+  });
+
+  it('rejects duplicate plugin identifiers', async () => {
+    const { pluginManager } = await createHarness();
+    const plugin: CubePlugin = {
+      id: 'duplicate',
+      name: 'Duplicate',
+      version: '1.0.0',
+      activate() {
+        return undefined;
+      },
+    };
+
+    pluginManager.register(plugin);
+
+    expect(() => pluginManager.register(plugin)).toThrowError(
+      /already registered/,
+    );
+    await expect(pluginManager.activate('missing')).rejects.toThrowError(
+      /not registered/,
+    );
+  });
+
+  it('marks plugins as failed and emits plugin:failed when activation throws', async () => {
+    const { eventBus, pluginManager } = await createHarness();
+    const failures: PluginFailure[] = [];
+
+    eventBus.on<PluginFailure>('plugin:failed', (event) => {
+      if (event.payload) {
+        failures.push(event.payload);
+      }
+    });
+
+    pluginManager.register({
+      id: 'broken',
+      name: 'Broken',
+      version: '1.0.0',
+      activate() {
+        throw new Error('boom');
+      },
+    });
+
+    await expect(pluginManager.activate('broken')).rejects.toMatchObject({
+      message: 'boom',
+      code: 'PLUGIN_LIFECYCLE_FAILED',
+    });
+
+    expect(pluginManager.getStatus('broken')).toBe('error');
+    expect(pluginManager.isActive('broken')).toBe(false);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      pluginId: 'broken',
+      phase: 'activate',
+    });
+  });
+
+  it('activates all plugins in order and deactivates them in reverse', async () => {
+    const { pluginManager } = await createHarness();
+    const order: string[] = [];
+
+    for (const id of ['alpha', 'beta']) {
+      pluginManager.register({
+        id,
+        name: id,
+        version: '1.0.0',
+        activate() {
+          order.push(`activate:${id}`);
+        },
+        deactivate() {
+          order.push(`deactivate:${id}`);
+        },
+      });
+    }
+
+    await pluginManager.activateAll();
+    await pluginManager.deactivateAll();
+
+    expect(order).toEqual([
+      'activate:alpha',
+      'activate:beta',
+      'deactivate:beta',
+      'deactivate:alpha',
+    ]);
+    expect(pluginManager.list().map((plugin) => plugin.status)).toEqual([
+      'deactivated',
+      'deactivated',
+    ]);
+  });
+
+  it('registers the plugin manager service and reflects plugin state in the UI', async () => {
+    document.body.innerHTML = '<div id="app"></div>';
+
+    const result = await bootstrapApplication({
+      runtimeOverrides: {
+        storage: {
+          driver: 'memory',
+        },
+      },
+    });
+
+    result.pluginManager.register({
+      id: 'demo',
+      name: 'Demo',
+      version: '0.1.0',
+      activate() {
+        return undefined;
+      },
+    });
+    await result.pluginManager.activate('demo');
+
+    expect(result.registry.has('services', CORE_SERVICE_IDS.pluginManager)).toBe(
+      true,
+    );
+    expect(document.querySelector('.cube-plugin-summary')?.textContent).toBe(
+      '1 plugins registered, 1 active.',
+    );
   });
 });
 

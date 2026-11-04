@@ -2,17 +2,17 @@
 
 ## Current Project Phase
 
-* Core engine plus initial workspace manager
+* Core engine plus workspace manager and plugin lifecycle manager
 
 ## Current Implementation Status
 
-* The repository implements a browser-based core runtime scaffold with a persisted workspace layer.
+* The repository implements a browser-based core runtime scaffold with a persisted workspace layer and a plugin lifecycle manager.
 
 * The frontend entrypoint is `src/main.ts`.
 
 * The composition root is `src/core/bootstrap/bootstrap.ts`.
 
-* The project currently validates successful boot by hydrating workspace state and rendering the root workspace into `#app`.
+* The project currently validates successful boot by hydrating workspace state, activating registered plugins, and rendering the root workspace into `#app`.
 
 ## Completed Components
 
@@ -50,9 +50,17 @@
 
 * Active workspace module rendering in the root workspace shell
 
+* Plugin manager with registration, activation, deactivation, and status tracking
+
+* Plugin failure isolation with `plugin:failed` emission
+
+* Plugin workspace contribution through `PluginContext`
+
+* Plugin summary rendering in the root workspace shell
+
 * Public core barrel exports
 
-* Vitest coverage for event bus, registry, storage, runtime lifecycle, workspace state, and bootstrap
+* Vitest coverage for event bus, registry, storage, runtime lifecycle, workspace state, plugins, and bootstrap
 
 ## Components Currently Being Implemented
 
@@ -60,9 +68,11 @@
 
 ## Components Not Yet Implemented
 
-* Window system
+* Dynamic plugin loading from external modules
 
-* Plugin loader
+* Command execution system
+
+* Window system
 
 * Feature modules and apps
 
@@ -81,6 +91,7 @@ src/
     errors/
     events/
     logger/
+    plugins/
     registry/
     runtime/
     storage/
@@ -108,6 +119,8 @@ tests/
 
 * `src/core/workspace/workspace-manager.ts`
 
+* `src/core/plugins/plugin-manager.ts`
+
 * `src/core/bootstrap/root-workspace.ts`
 
 * `tests/core-engine.test.ts`
@@ -134,6 +147,8 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 * Workspace manager and workspace state types
 
+* Plugin manager and plugin lifecycle types
+
 ## Current Tests
 
 * `tests/core-engine.test.ts`
@@ -152,7 +167,9 @@ The public core exports currently come from `src/core/index.ts` and include:
 
   * Workspace manager hydration, persistence, and rehydration behavior
 
-  * Bootstrap success path, root workspace render, live runtime-status sync, and active workspace-panel sync
+  * Plugin registration, activation/deactivation ordering, failure isolation, and workspace contribution
+
+  * Bootstrap success path, root workspace render, live runtime-status sync, active workspace-panel sync, and plugin-summary sync
 
 ## Current Build Status
 
@@ -164,7 +181,7 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 ## Current Known Limitations
 
-* No plugin loading despite reserved registry support for `plugins`
+* No dynamic plugin loading from external modules; plugins are registered programmatically
 
 * No command execution system despite reserved registry support for `commands`
 
@@ -210,9 +227,9 @@ The public core exports currently come from `src/core/index.ts` and include:
 
 ## Most Recently Changed
 
-* The workspace manager now hydrates persisted workspace items, exposes active-item selection, and is registered as a core service
+* The plugin manager now registers, activates, deactivates, and isolates failures for plugins, and is registered as a core service
 
-* The root workspace shell now renders and updates the active workspace module alongside runtime status
+* Plugins contribute workspace items through `PluginContext`, and the root workspace shell renders a live plugin summary
 
 ## What Should Be Worked On Next
 
@@ -220,4 +237,4 @@ The public core exports currently come from `src/core/index.ts` and include:
 
   * harden runtime failure-path and config-override tests, or
 
-  * begin the next planned subsystem such as plugin loading or a window system layered on top of the workspace manager
+  * build a window system or a dynamic plugin loader layered on top of the current workspace and plugin managers
