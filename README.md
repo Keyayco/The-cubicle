@@ -1,38 +1,53 @@
-# Cube OS - Core Engine, Plugin Loader, Command System, and Workspace Manager
+# The Cubicle — Cube + Terminal Shell
 
-This repository contains the Phase 1 browser core engine, Plugin Loader, Command System, a persisted Workspace Manager, and an optional sample Demo Plugin. The Workspace Manager owns item metadata and active-item state; it does not render workspace items or introduce windows, sessions, dashboards, or business-specific features.
+The Cubicle is a browser-based operating environment scaffold built with
+TypeScript, Vite, and the existing core runtime. The flagship shell now includes
+a CSS 3D cube status indicator, a command terminal, and a small application
+workspace area.
 
-## Scope
+## Current experience
 
-Phase 1 includes:
+- The cube reflects real runtime status, command execution, and plugin outcomes.
+  It starts neutral, shows active command work, turns green after success, and
+  stays red after failures. After the first successful command or plugin load
+  observed by the shell, it moves to a compact status indicator.
+- The terminal dispatches exact registered command IDs through `CommandService`.
+  `help` lists commands actually present in the shared registry. The terminal
+  does not execute arbitrary shell text or parse command arguments.
+- The browser host explicitly opts the sample `demo.greeter` plugin into
+  `bootstrapApplication()`. Its registered command is
+  `demo.greeter.sayHello`.
+- Workspace metadata is displayed in a clearly marked placeholder. Workspace
+  items are not application views.
 
-- Application bootstrap
-- Runtime lifecycle management
-- Event bus
-- Central registry
-- Logger
-- Storage abstraction
-- Configuration service
-- Centralized error handling
-- Persisted system/plugin workspace-item metadata and active-item selection
+## Architecture and boundaries
 
-The current implementation does not include:
+`src/core` remains the source of truth for runtime, commands, plugins, events,
+storage, and workspace metadata. Presentation code lives under `src/ui` and
+consumes those public contracts. The terminal uses the existing `CommandService`
+and `EventBus`; no second command registry or plugin loader was added.
 
-- Window system
-- Feature modules and apps
-- Authentication
-- Cloud sync
+Plugin activation is supported, but the repository still has no application
+definition that binds a terminal name to a plugin, workspace item, and renderer.
+There is no Balances application or application renderer yet. Entering `balances`
+therefore produces the real `COMMAND_NOT_FOUND` diagnostic instead of a fake
+launch. The sample greeting plugin demonstrates command lifecycle only.
 
-The Plugin Loader activates trusted plugin definitions registered by the host. It does not dynamically import arbitrary module paths or sandbox plugin code.
+The current implementation does not include a window system, app suite,
+authentication, cloud sync, dynamic plugin imports, plugin sandboxing, or
+arbitrary shell execution.
 
-The sample Demo Plugin is defined in `src/plugins/demo-plugin.ts`. It registers one greeting command through `PluginContext.commands`; the host must register and load it explicitly. The default bootstrap does not import or auto-load it.
-
-## Architecture
+## Source layout
 
 ```text
 src/
+  main.ts
   plugins/
     demo-plugin.ts
+  ui/
+    cube-indicator.ts
+    root-workspace.ts
+    terminal.ts
   core/
     bootstrap/
     commands/
@@ -47,39 +62,18 @@ src/
     workspace/
 ```
 
-### Design Notes
-
-- Plugin-first: the runtime exposes stable services that future plugins can consume.
-- Event-driven: the `EventBus` provides decoupled communication where direct module coupling is not appropriate.
-- Separated concerns: each subsystem owns one responsibility and is wired together only at bootstrap time.
-- No circular dependencies: services depend on contracts and orchestration happens through the runtime.
-- Storage abstraction: callers depend on `StorageService`, not on `localStorage` or a specific persistence engine.
-- Plugin lifecycle: plugins use the shared core services and central registry; Runtime loads registered plugins on initialization and unloads them on shutdown.
-- Commands: command definitions use the central `commands` registry category and are dispatched by `CommandService`; plugins can register and remove commands through their plugin context.
-- Workspace items: `WorkspaceManager` persists item metadata and active selection through `StorageService`, emits state events through `EventBus`, and is exposed as a Runtime service; it does not create a second registry or UI.
-
 ## Development
 
-Install dependencies:
-
 ```bash
-npm install
-```
-
-Start the browser runtime:
-
-```bash
+npm ci
 npm run dev
-```
-
-Run tests:
-
-```bash
 npm test
-```
-
-Create a production build:
-
-```bash
 npm run build
 ```
+
+Terminal output is session-only, capped at 200 lines and 4,000 characters per
+line. Events use the EventBus timestamp; locally generated lines use the current
+time. Sensitive-looking fields and delimited tabular payloads are redacted
+before display. The interface uses text nodes for output, defers terminal DOM
+updates while hidden, pauses cube animation, and honors
+`prefers-reduced-motion`.

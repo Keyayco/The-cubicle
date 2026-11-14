@@ -4,7 +4,10 @@ import { CommandService } from '../commands/command-service';
 import { ErrorManager } from '../errors/error-manager';
 import { EventBus } from '../events/event-bus';
 import { Logger } from '../logger/logger';
-import { PluginLoader } from '../plugins/plugin-loader';
+import {
+  PluginLoader,
+  type PluginDefinition,
+} from '../plugins/plugin-loader';
 import { Registry } from '../registry/registry';
 import { Runtime } from '../runtime/runtime';
 import {
@@ -15,10 +18,11 @@ import { LocalStorageAdapter } from '../storage/local-storage-adapter';
 import { MemoryStorageAdapter } from '../storage/memory-storage-adapter';
 import type { StorageAdapter } from '../storage/storage-adapter';
 import { StorageService } from '../storage/storage-service';
-import { renderRootWorkspace } from './root-workspace';
+import { renderRootWorkspace } from '../../ui/root-workspace';
 
 export interface BootstrapOptions {
   container?: HTMLElement;
+  plugins?: readonly PluginDefinition[];
   runtimeOverrides?: DeepPartial<CubeConfig>;
 }
 
@@ -33,6 +37,7 @@ export interface BootstrapResult {
   runtime: Runtime;
   storage: StorageService;
   workspaceManager: WorkspaceManager;
+  disposeUI: () => void;
 }
 
 const deriveEnvironmentConfig = (): DeepPartial<CubeConfig> => {
@@ -145,14 +150,25 @@ export const bootstrapApplication = async (
     storage,
     workspaceManager,
   });
+  let disposeUI = (): void => undefined;
 
   try {
+    for (const plugin of options?.plugins ?? []) {
+      pluginLoader.register(plugin);
+    }
+
     await workspaceManager.initialize(createDefaultWorkspaceItems(config.getAll()));
     runtime.initialize();
 
     const rootElement = resolveRootElement(config, options?.container);
-    renderRootWorkspace(rootElement, config.getAll(), runtime);
+    disposeUI = renderRootWorkspace(rootElement, {
+      commandService,
+      eventBus,
+      runtime,
+      workspaceManager,
+    });
   } catch (error) {
+    disposeUI();
     const normalizedError = errorManager.capture(error, {
       source: 'bootstrap.initialize',
     });
@@ -171,5 +187,6 @@ export const bootstrapApplication = async (
     runtime,
     storage,
     workspaceManager,
+    disposeUI,
   };
 };
